@@ -1,16 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base */
+  --background: #0e0e12;     /* main dark background */
+  --foreground: #e4e4e7;     /* main text color */
+  
+  /* UI Surfaces */
+  --surface: #0f1016;        /* chat background panels */
+  --surface-alt: #161829;    /* sidebar / secondary background */
+  --border: #1b1c27;         /* borders/dividers */
+  
+  /* Accents */
+  --primary: #36abd9;  
+  --primary-hover: #2a92b9;        /* blue (buttons, links) */
+  --primary-100: #65c9f0;      /* bright blue (send button, links) */
+  --primary-hover: #2a92b9;  /* hover state */
+  --secondary: #8b5cf6;      /* purple (highlights / user avatars) */
+  --secondary-hover: #7c3aed;
+  --primary-900: #03252e; /* dark blue (selected sidebar item) */
+  
+  /* States */
+  --success: #22c55e;        /* green */
+  --warning: #facc15;        /* yellow */
+  --error: #ef4444;          /* red */
+  
+  /* Muted / Neutral text */
+  --muted: #a1a1aa;          /* placeholder, timestamps */
+  --muted-foreground: #71717a;
 }
 
 @theme inline {
+  --font-poppins: 'Poppins', sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-border: var(--border);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-100: var(--primary-100)
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-primary-900: var(--primary-900);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 }
+
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -19,8 +62,72 @@
   }
 }
 
+@layer utilities {
+  .h1 {
+    @apply text-[34px] leading-[64px] font-poppins font-semibold;
+  }
+  .h2 {
+    @apply text-[24px] leading-[36px] font-poppins font-bold;
+  }
+  .h3 {
+    @apply text-[20px] leading-[28px] font-poppins font-medium;
+  }
+  .h4 {
+    @apply text-[18px] leading-[20px] font-poppins font-medium;
+  }
+  .h5 {
+    @apply text-[16px] leading-[24px] font-poppins font-semibold;
+  }
+  .subtitle-1 {
+    @apply text-[16px] leading-[24px] font-poppins font-medium;
+  }
+  .subtitle-2 {
+    @apply text-[14px] leading-[20px] font-poppins font-semibold;
+  }
+  .body-1 {
+    @apply text-[16px] leading-[24px] font-poppins font-normal;
+  }
+  .body-2 {
+    @apply text-[14px] leading-[20px] font-poppins font-normal;
+  }
+  .button {
+    @apply text-[14px] leading-[20px] font-poppins font-medium;
+  }
+  .caption {
+    @apply text-[12px] leading-[16px] font-poppins font-normal;
+  }
+  .overline {
+    @apply text-[10px] leading-[14px] font-poppins font-normal;
+  }  
+  .container {
+    @apply mx-auto max-w-7xl px-5;
+  }
+  .flex-center {
+    @apply flex items-center justify-center gap-[16px];
+  }
+  .flex-center-col {
+    @apply flex flex-col items-center justify-center;
+  }
+  .card {
+    @apply flex flex-col items-center justify-center bg-background px-[18px] py-[18px] rounded-[22px];
+  }
+  .auth-form {
+    @apply flex my-[32px] px-[18px] max-h-[800px] w-full max-w-[580px] flex-col justify-center items-center space-y-2 transition-all lg:h-full lg:space-y-4;
+  }
+  .input {
+    @apply w-full rounded-[12px] border border-border bg-surface-alt px-4 py-3 text-foreground placeholder:font-light placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:bg-border hover:border-foreground transition-all;
+  }
+  .primary-btn {
+    @apply bg-primary rounded-[12px] px-4 py-3 text-foreground w-full text-primary-900 font-semibold hover:bg-primary-hover hover:text-foreground transition-all;
+  }
+  .secondary-btn {
+    @apply bg-surface-alt rounded-[12px] px-4 py-3 text-foreground w-full border border-border hover:bg-border hover:border-foreground transition-all;
+  }
+}
+  
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Poppins, Helvetica, sans-serif;
 }
