@@ -112,16 +112,19 @@
     @apply flex flex-col items-center justify-center bg-background px-[18px] py-[18px] rounded-[22px];
   }
   .auth-form {
-    @apply flex my-[32px] px-[18px] max-h-[800px] w-full max-w-[580px] flex-col justify-center items-center space-y-2 transition-all lg:h-full lg:space-y-4;
+    @apply flex my-[32px] px-[18px] max-h-[800px] w-full max-w-[580px] flex-col justify-center items-center space-y-2 transition-all lg:h-full lg:space-y-2;
   }
   .input {
     @apply w-full rounded-[12px] border border-border bg-surface-alt px-4 py-3 text-foreground placeholder:font-light placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:bg-border hover:border-foreground transition-all;
   }
   .primary-btn {
-    @apply bg-primary rounded-[12px] px-4 py-3 text-foreground w-full text-primary-900 font-semibold hover:bg-primary-hover hover:text-foreground transition-all;
+    @apply bg-primary rounded-[12px] px-4 py-3 text-white w-full text-primary-900 font-semibold hover:bg-primary-hover hover:text-foreground transition-all;
   }
   .secondary-btn {
-    @apply bg-surface-alt rounded-[12px] px-4 py-3 text-foreground w-full border border-border hover:bg-border hover:border-foreground transition-all;
+    @apply bg-surface-alt rounded-[12px] px-4 py-2 text-foreground w-full border border-border hover:bg-border hover:border-foreground transition-all;
+  }
+  .error-message {
+    @apply mx-auto w-full rounded-xl bg-error/5 px-8 py-3 text-center text-error text-[14px];
   }
 }
   
