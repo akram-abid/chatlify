@@ -15,7 +15,9 @@ async function authRequest(endpoint: string, data: unknown) {
   });
 
   const json = await res.json();
-  if (!res.ok) throw new Error(json.message || 'Something went wrong');
+  if (!res.ok){
+    throw new Error(json.error || 'Something went wrong');
+  } 
   return json;
 }
 
