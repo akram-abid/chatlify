@@ -1,13 +1,11 @@
 'use client';
 
-import { loginSchema, registerSchema } from '@/lib/validations/user';
 import React from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { BeatLoader } from 'react-spinners';
+import { loginSchema, registerSchema } from '../lib/validations/user';
 
-type FormType = 'sign-in' | 'sign-up';
-
-async function authRequest(endpoint: string, data: unknown) {
+async function authRequest(endpoint, data) {
   const res = await fetch(`/api/auth/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -21,11 +19,11 @@ async function authRequest(endpoint: string, data: unknown) {
   return json;
 }
 
-const AuthForm = ({ type }: { type: FormType }) => {
+const AuthForm = ({type}) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
@@ -51,7 +49,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
       );
       console.log(`${type} successful:`, data);
 
-    } catch (err: unknown) {
+    } catch (err) {
       if (err instanceof Error) {
         setErrorMessage(err.message);
       } else {

@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import React from 'react'
 
-const Layout = ({ children } : { children: React.ReactNode }) => {
+const Layout = ({children}) => {
   return (
     <div className='h-screen flex-center flex-col bg-surface'>
         <div className="card w-[446px]">

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 
@@ -8,16 +7,12 @@ const poppins = Poppins({
   variable: "--font-poppins",
 })
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Chaytlify",
   description: "Chatlify - the only chat app you'll need.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({children}) {
   return (
     <html lang="en">
       <body

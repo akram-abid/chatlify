@@ -3,9 +3,13 @@
 
 :root {
   /* Base */
-  --background: #0e0e12;     /* main dark background */
-  --foreground: #e4e4e7;     /* main text color */
+  --background: #2fa500;
+  --foreground: #e4e4e7;  
   
+  --mate: #141518;
+  --mate-light: #23252b;
+  --mate-dark: #0a0a0c;
+
   /* UI Surfaces */
   --surface: #0f1016;        /* chat background panels */
   --surface-alt: #161829;    /* sidebar / secondary background */
@@ -37,6 +41,10 @@
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
   --color-border: var(--border);
+
+  --color-mate: var(--mate);
+  --color-mate-dark: var(--mate);
+  --color-mate-light: var(--mate);
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
