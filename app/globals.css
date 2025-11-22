@@ -71,8 +71,8 @@
   --color-border: var(--border);
 
   --color-mate: var(--mate);
-  --color-mate-dark: var(--mate);
-  --color-mate-light: var(--mate);
+  --color-mate-dark: var(--mate-dark);
+  --color-mate-light: var(--mate-light);
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
@@ -181,6 +181,14 @@
   }
   .error-message {
     @apply mx-auto w-full rounded-xl bg-error/5 px-8 py-3 text-center text-error text-[14px];
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
