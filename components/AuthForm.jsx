@@ -4,6 +4,7 @@ import React from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { BeatLoader } from 'react-spinners';
 import { loginSchema, registerSchema } from '../lib/validations/user';
+import { useRouter } from 'next/navigation';
 
 async function authRequest(endpoint, data) {
   const res = await fetch(`/api/auth/${endpoint}`, {
@@ -13,15 +14,16 @@ async function authRequest(endpoint, data) {
   });
 
   const json = await res.json();
-  if (!res.ok){
+  if (!res.ok) {
     throw new Error(json.error || 'Something went wrong');
-  } 
+  }
   return json;
 }
 
-const AuthForm = ({type}) => {
+const AuthForm = ({ type }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
+  const router = useRouter();
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -45,10 +47,10 @@ const AuthForm = ({type}) => {
     try {
       const data = await authRequest(
         type === 'sign-in' ? 'signin' : 'signup',
-        result.data 
+        result.data
       );
       console.log(`${type} successful:`, data);
-
+      router.replace('/');
     } catch (err) {
       if (err instanceof Error) {
         setErrorMessage(err.message);
@@ -92,7 +94,11 @@ const AuthForm = ({type}) => {
 
       {errorMessage && <p className="error-message">{errorMessage}</p>}
 
-      <button className="primary-btn mt-4 flex-center" type="submit" disabled={isLoading}>
+      <button
+        className="primary-btn mt-4 flex-center"
+        type="submit"
+        disabled={isLoading}
+      >
         {isLoading ? (
           <BeatLoader color="#ffffff" className="py-1" size={12} />
         ) : type === 'sign-in' ? (

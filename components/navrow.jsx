@@ -10,6 +10,7 @@ import { FloatingDockDemo } from './ui/FloatingDockDemo';
 import { Toggle } from './ui/toggle';
 import { ThemeSwitcher } from './ui/shadcn-io/theme-switcher';
 import ThemeSwitcherButton from './ThemeSwitcher';
+import LogoutButton from './ui/LogoutButton';
 
 const Navrow = () => {
   return (
@@ -55,10 +56,7 @@ const Navrow = () => {
       <div className="flex flex-col justify-center items-center gap-3 ">
         <FontAwesomeIcon icon={faGear} className="w-6 text-accent" />
         <ThemeSwitcherButton />
-        <FontAwesomeIcon
-          icon={faRightFromBracket}
-          className="w-6 text-red-500 mb-2"
-        />
+        <LogoutButton />
       </div>
     </div>
   );
