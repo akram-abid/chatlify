@@ -5,17 +5,20 @@ import Contacts from '@/components/Contacts';
 import Navrow from '../components/navrow';
 
 export default function Home() {
-  const [Ws, SetWs] = useState({});
+  const [Ws, SetWs] = useState([]);
+
   useEffect(() => {
     const fetchWorkspaces = async () => {
-      const res = await fetch('http://localhost:3001/api/workspaces/');
-      const data = await res.json();
-      console.log('the data is: ', data);
-      SetWs(data.workspaces);
+      try {
+        const res = await fetch('http://localhost:3000/api/workspaces/');
+        const data = await res.json();
+        SetWs(data.workspaces);
+      } catch (err) {
+        console.error(err);
+      }
     };
 
     fetchWorkspaces();
-    console.log('The wss are: ', Ws);
   }, []);
 
   return (

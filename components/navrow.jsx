@@ -1,14 +1,7 @@
-import {
-  faAdd,
-  faGear,
-  faRightFromBracket,
-  faScrewdriverWrench,
-} from '@fortawesome/free-solid-svg-icons';
+import { faAdd, faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Image from 'next/image';
-import { FloatingDockDemo } from './ui/FloatingDockDemo';
-import { Toggle } from './ui/toggle';
-import { ThemeSwitcher } from './ui/shadcn-io/theme-switcher';
+
 import ThemeSwitcherButton from './ThemeSwitcher';
 import LogoutButton from './ui/LogoutButton';
 
@@ -38,11 +31,11 @@ const Navrow = ({ workspaces }) => {
 
       <div className="flex flex-col justify-center items-center gap-3 flex-1 min-h-0">
         <div className="flex-1 w-full rounded-2xl p-2 flex flex-col gap-4 overflow-y-auto hover:bg-mate-light  transition-all duration-300 min-h-0 scrollbar-hide">
-          {console.log("the workspaces array is this: ")}
-          {workspaces.forEach((ws) => {
-            console.log("the ws name: ", ws.name)
+          {console.log('the workspaces array is this: ', workspaces)}
+          {workspaces.map((ws) => {
+            console.log('the ws name: ', ws.name);
             return (
-              <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
+              <div key={ws.id} className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
             );
           })}
         </div>
