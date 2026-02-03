@@ -33,7 +33,7 @@ const Navrow = ({ workspaces, updateSections}) => {
         <div className="flex-1 w-full rounded-2xl p-2 flex flex-col gap-4 overflow-y-auto hover:bg-mate-light  transition-all duration-300 min-h-0 scrollbar-hide">
           {console.log('the workspaces array is this: ', workspaces)}
           {workspaces.map((ws) => {
-            console.log('the ws name: ', ws.name);
+            console.log('the ws name: ', ws.sections);
             return (
               <div key={ws.id} onClick={() => updateSections(ws.sections)} className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
             );

@@ -4,13 +4,13 @@ import { jwtVerify } from 'jose';
 
 export async function GET(req, { params }) {
   try {
-    const authHeader = req.headers.get('authorization');
+    // const authHeader = req.headers.get('authorization');
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // }
 
-    const token = authHeader.split(' ')[1];
+    const token = req.cookies.get('access_token').value;
     console.log("this is the secret: ", process.env.JWT_SECRET + "and this is the token: ", token)
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
