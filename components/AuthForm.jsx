@@ -17,6 +17,8 @@ async function authRequest(endpoint, data) {
   if (!res.ok) {
     throw new Error(json.error || 'Something went wrong');
   }
+  
+  localStorage.setItem("userData", JSON.stringify(json))  
   return json;
 }
 
@@ -49,7 +51,7 @@ const AuthForm = ({ type }) => {
         type === 'sign-in' ? 'signin' : 'signup',
         result.data
       );
-      console.log(`${type} successful:`, data);
+      console.log(`${type} successful:`, data);  
       router.replace('/');
     } catch (err) {
       if (err instanceof Error) {

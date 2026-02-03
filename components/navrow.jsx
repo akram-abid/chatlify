@@ -12,10 +12,12 @@ import { ThemeSwitcher } from './ui/shadcn-io/theme-switcher';
 import ThemeSwitcherButton from './ThemeSwitcher';
 import LogoutButton from './ui/LogoutButton';
 
-const Navrow = () => {
+const Navrow = ({ workspaces }) => {
+  console.log('i ma receiving the wss: ', workspaces);
+
   return (
     <div className="bg-mate flex flex-col items-center gap-2 p-2 h-screen">
-      <div className='flex flex-col justify-center items-center gap-3'>
+      <div className="flex flex-col justify-center items-center gap-3">
         <Image
           src="/logo.png"
           alt="logo"
@@ -36,15 +38,13 @@ const Navrow = () => {
 
       <div className="flex flex-col justify-center items-center gap-3 flex-1 min-h-0">
         <div className="flex-1 w-full rounded-2xl p-2 flex flex-col gap-4 overflow-y-auto hover:bg-mate-light  transition-all duration-300 min-h-0 scrollbar-hide">
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
-          <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
+          {console.log("the workspaces array is this: ")}
+          {workspaces.forEach((ws) => {
+            console.log("the ws name: ", ws.name)
+            return (
+              <div className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
+            );
+          })}
         </div>
         <div className="w-[40px] h-[40px] bg-mate-light rounded-[8px] flex items-center justify-center flex-shrink-0">
           <FontAwesomeIcon icon={faAdd} className="text-accent w-4" />

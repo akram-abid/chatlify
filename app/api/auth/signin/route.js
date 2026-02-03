@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../../../lib/prisma';
 import jwt from 'jsonwebtoken';
-import { success } from 'zod';
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {
@@ -22,11 +21,11 @@ export async function POST(req) {
 
     const accessToken = jwt.sign(
       {
-        userId: email,
+        userId: existingUser.id,
         email: email
       },
       process.env.JWT_SECRET,
-      {expiresIn: "15m"}
+      {expiresIn: "120m"}
     );
 
     const refreshToken = jwt.sign(

@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../../../lib/prisma';
 import { NextResponse } from 'next/server';
+export const runtime = "nodejs";
+  
 
 export async function POST(req) {
   if (req.method !== 'POST') {

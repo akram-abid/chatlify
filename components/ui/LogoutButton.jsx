@@ -17,7 +17,7 @@ export default function LogoutButton() {
           credentials: "include",
         });
 
-        router.replace("/sign-in");
+        router.replace("/signin");
       }}
     />
   );

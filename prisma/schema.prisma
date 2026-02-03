@@ -15,10 +15,71 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  name     String
-  email    String @unique
-  password String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String @id @default(cuid())
+  name        String
+  email       String @unique
+  password    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  messages    Message[]
+  threads     Thread[]
+  memberships WorkspaceMember[]
 }
+
+
+
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  sections  Section[]
+  members   WorkspaceMember[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        String?
+
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+}
+
+model Section {
+  id          String   @id @default(uuid())
+  name        String
+  workspaceId String
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  threads     Thread[]
+}
+
+model Thread {
+  id          String   @id @default(uuid())
+  title       String
+  sectionId   String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  section     Section @relation(fields: [sectionId], references: [id])
+  createdBy   User    @relation(fields: [createdById], references: [id])
+  messages    Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  threadId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  thread    Thread @relation(fields: [threadId], references: [id])
+  user      User   @relation(fields: [userId], references: [id])
+}
+
