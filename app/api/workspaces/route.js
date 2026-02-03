@@ -6,7 +6,7 @@ export async function GET(req) {
   try {
     // const authHeader = req.headers.get('authorization');
 
-    const token = req.cookies.get("access_token").value;
+    const token = req.cookies.get('access_token').value;
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
     const payload = await jwtVerify(token, secret);
@@ -21,7 +21,32 @@ export async function GET(req) {
         },
       },
       include: {
-        sections: true,
+        sections: {
+          include: {
+            threads: {
+              include: {
+                createdBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import ThemeSwitcherButton from './ThemeSwitcher';
 import LogoutButton from './ui/LogoutButton';
 
-const Navrow = ({ workspaces }) => {
+const Navrow = ({ workspaces, updateSections}) => {
   console.log('i ma receiving the wss: ', workspaces);
 
   return (
@@ -35,7 +35,7 @@ const Navrow = ({ workspaces }) => {
           {workspaces.map((ws) => {
             console.log('the ws name: ', ws.name);
             return (
-              <div key={ws.id} className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
+              <div key={ws.id} onClick={() => updateSections(ws.sections)} className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"></div>
             );
           })}
         </div>
