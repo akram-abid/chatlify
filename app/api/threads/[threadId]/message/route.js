@@ -4,11 +4,6 @@ import { jwtVerify } from 'jose';
 
 export async function GET(req, { params }) {
   try {
-    // const authHeader = req.headers.get('authorization');
-
-    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
     const token = req.cookies.get('access_token').value;
     console.log('the token: ', token);
     console.log(
@@ -26,8 +21,6 @@ export async function GET(req, { params }) {
     }
 
     const { threadId } = await params;
-    console.log('the threadId is this one: ', threadId);
-    console.log("----------------------------------------------------------------------------------------")
     const thread = await prisma.message.findMany({
       where: { threadId },
       orderBy: { createdAt: 'asc' },
@@ -35,7 +28,7 @@ export async function GET(req, { params }) {
         user: {
           select: {
             id: true,
-            name: true, // ✅ Add this
+            name: true, 
             email: true,
           },
         },

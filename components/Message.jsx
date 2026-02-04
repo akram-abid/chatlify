@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MessageItem } from './MessageItem';
 
 export const Message = ({ thread, messages }) => {
-  console.warn(messages);
+  const [message, setMessage] = useState('');
 
   return (
     <div className="flex flex-col h-full bg-blue-900 text-white">
@@ -28,14 +28,27 @@ export const Message = ({ thread, messages }) => {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-white/10">
-        <div className="flex items-center gap-2 bg-blue-800 rounded-lg px-3 py-2">
-          <span className="opacity-50">+</span>
-          <input
-            type="text"
-            placeholder={`Message #${thread?.title || 'channel'}`}
-            className="flex-1 bg-transparent outline-none text-sm"
-          />
+      <div className="p-4 border-t border-white/10 ">
+        <div className="flex items-center gap-2 bg-blue-800 rounded-lg px-3 py-2 justify-between">
+          <div className="flex gap-2">
+            <span className="opacity-50">+</span>
+            <input
+              type="text"
+              placeholder={`Message #${thread?.title || 'channel'}`}
+              onChange={(e) => {
+                setMessage(e.target.value);
+              }}
+              className="flex-1 bg-transparent outline-none text-sm"
+            />
+          </div>
+          <div
+            onClick={() => {
+              
+            }}
+            className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-black font-bold"
+          >
+            S
+          </div>
         </div>
       </div>
     </div>
