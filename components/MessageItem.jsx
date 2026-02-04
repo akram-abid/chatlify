@@ -4,14 +4,14 @@ export const MessageItem = ({ message }) => {
       
       {/* Avatar */}
       <div className="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center text-black font-bold">
-        {message.author.name[0].toUpperCase()}
+        {message.user.name[0].toUpperCase()} 
       </div>
 
       {/* Content */}
       <div>
         <div className="flex items-center gap-2">
           <span className="font-semibold text-sm">
-            {message.author.name}
+            { message.user.name }
           </span>
           <span className="text-xs opacity-50">
             {new Date(message.createdAt).toLocaleTimeString()}

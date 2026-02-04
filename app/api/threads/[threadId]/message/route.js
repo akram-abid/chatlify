@@ -9,44 +9,47 @@ export async function GET(req, { params }) {
     // if (!authHeader || !authHeader.startsWith('Bearer ')) {
     //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // }
-
     const token = req.cookies.get('access_token').value;
-    console.log("this is the secret: ", process.env.JWT_SECRET + "and this is the token: ", token)
+    console.log('the token: ', token);
+    console.log(
+      'this is the secret: ',
+      process.env.JWT_SECRET + 'and this is the token: ',
+      token
+    );
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    console.log("the payload is that: ", payload)
+    console.log('the payload is that: ', payload);
     const user = payload.userId;
-    console.log("the user is: ", user)
+    console.log('the user is: ', user);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { threadId } = await params;
     console.log('the threadId is this one: ', threadId);
-    const thread = await prisma.thread.findUnique({
-      where: { id: threadId },
+    console.log("----------------------------------------------------------------------------------------")
+    const thread = await prisma.message.findMany({
+      where: { threadId },
+      orderBy: { createdAt: 'asc' },
       include: {
-        section: {
-          include: {
-            workspace: {
-              include: {
-                members: {
-                  where: { userId: user },
-                },
-              },
-            },
+        user: {
+          select: {
+            id: true,
+            name: true, // ✅ Add this
+            email: true,
           },
         },
       },
     });
+    console.log("the data is that: ", thread)
 
     if (!thread) {
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
     }
 
-    if (thread.section.workspace.members.length === 0) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // if (thread.section.workspace.members.length === 0) {
+    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // }
 
     const messages = await prisma.message.findMany({
       where: { threadId },
@@ -61,8 +64,11 @@ export async function GET(req, { params }) {
       },
     });
 
-    console.log("those are the messages and lets say that we did it: ", messages)
-    return NextResponse.json(messages);
+    console.log(
+      'those are the messages and lets say that we did it: ',
+      messages
+    );
+    return NextResponse.json(thread);
   } catch (err) {
     console.error('JWT ERROR:', err);
 
