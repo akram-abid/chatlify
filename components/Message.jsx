@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MessageItem } from './MessageItem';
 
-export const Message = ({ thread, messages }) => {
+export const Message = ({ thread, messages, setMessages}) => {
   const [message, setMessage] = useState('');
 
   return (
@@ -42,8 +42,24 @@ export const Message = ({ thread, messages }) => {
             />
           </div>
           <div
-            onClick={() => {
-              
+            onClick={async () => {
+              const response = await fetch(
+                `/api/threads/${thread.id}/message`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    content: message,
+                  }),
+                }
+              );
+
+              const newMessages = await response.json();
+              console.log('those are the new messages: ', newMessages);
+
+              setMessages(newMessages);
             }}
             className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-black font-bold"
           >

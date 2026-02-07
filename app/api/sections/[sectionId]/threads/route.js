@@ -15,6 +15,10 @@ export async function GET(req, { params }) {
     const { payload } = await jwtVerify(token, secret);
     const userId = payload.userId;
 
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { sectionId } = await params;
 
     const section = await prisma.section.findUnique({
@@ -33,7 +37,6 @@ export async function GET(req, { params }) {
     if (!section) {
       return NextResponse.json({ error: 'Section not found' }, { status: 404 });
     }
-    console.log("the section is this and he should see it: ", section)
 
     if (section.workspace.members.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -46,17 +49,17 @@ export async function GET(req, { params }) {
         createdBy: {
           select: {
             id: true,
+            name: true, 
             email: true,
           },
         },
       },
     });
-    console.log("do you think this is going to work..")
+
     return NextResponse.json(threads);
   } catch (err) {
-    console.error('JWT ERROR:', err);
+    console.error('Error:', err);
 
-    console.log('the error is that: ', err);
     if (err.code === 'ERR_JWT_EXPIRED') {
       return NextResponse.json(
         { error: 'Token expired', code: 'TOKEN_EXPIRED' },

@@ -52,7 +52,7 @@ export default function Home() {
     <div className="grid grid-cols-[70px_300px_1fr] h-screen dark">
       <Navrow workspaces={Ws} updateSections={SetSections} />
       <Contacts sections={Sections} updateSelectedThred={SetSelctedThread} />
-      <Message thread={SelectedThread} messages={Messages} />
+      <Message thread={SelectedThread} messages={Messages} setMessages={SetMessages} />
     </div>
   );
 }

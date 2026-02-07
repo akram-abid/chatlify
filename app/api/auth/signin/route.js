@@ -30,7 +30,7 @@ export async function POST(req) {
 
     const refreshToken = jwt.sign(
       {
-        userId: email,
+        userId: existingUser.id,
         email: email
       },
       process.env.JWT_SECRET,
