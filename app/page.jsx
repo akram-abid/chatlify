@@ -4,12 +4,21 @@ import { useEffect, useState } from 'react';
 import Contacts from '@/components/Contacts';
 import Navrow from '../components/navrow';
 import Message from '@/components/Message';
+import { getCurrentUserId } from '@/lib/auth';
 
 export default function Home() {
   const [Ws, SetWs] = useState([]);
   const [Sections, SetSections] = useState([]);
   const [SelectedThread, SetSelctedThread] = useState({});
   const [Messages, SetMessages] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => setCurrentUserId(data.userId))
+      .catch(() => setCurrentUserId(null));
+  }, []);
 
   useEffect(() => {
     console.log('the secions are: ', Sections);
@@ -39,7 +48,7 @@ export default function Home() {
         );
         const data = await res.json();
         SetMessages(data);
-        console.log('the messages are: ', data);  
+        console.log('the messages are: ', data);
       } catch (err) {
         console.error(err);
       }
@@ -52,7 +61,12 @@ export default function Home() {
     <div className="grid grid-cols-[70px_300px_1fr] h-screen dark">
       <Navrow workspaces={Ws} updateSections={SetSections} />
       <Contacts sections={Sections} updateSelectedThred={SetSelctedThread} />
-      <Message thread={SelectedThread} messages={Messages} setMessages={SetMessages} />
+      <Message
+        thread={SelectedThread}
+        messages={Messages}
+        setMessages={SetMessages}
+        currentUserId={currentUserId}
+      />
     </div>
   );
 }
