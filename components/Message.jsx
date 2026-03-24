@@ -2,17 +2,33 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/context/AuthContext';
+import { faHashtag, faPaperPlane, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-export const Message = ({
-  thread,
-  messages,
-  setMessages,
-  onlineUsers = [],
-}) => {
+/* ── avatar gradients ── */
+const GRADIENTS = [
+  'linear-gradient(135deg, #11a2d6, #0b6fa0)',
+  'linear-gradient(135deg, #7c3aed, #5b21b6)',
+  'linear-gradient(135deg, #0d9488, #0f766e)',
+  'linear-gradient(135deg, #d97706, #b45309)',
+  'linear-gradient(135deg, #e11d48, #be123c)',
+  'linear-gradient(135deg, #059669, #047857)',
+  'linear-gradient(135deg, #2563eb, #1d4ed8)',
+];
+const getGradient = (name = '') => GRADIENTS[name.charCodeAt(0) % GRADIENTS.length];
+
+const formatTime = (d) =>
+  new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/* ──────────────────────────────────────────────
+   MAIN MESSAGE COMPONENT
+────────────────────────────────────────────── */
+export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [newMsgIds, setNewMsgIds] = useState(new Set());
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -21,32 +37,29 @@ export const Message = ({
   const { currentUserId, token } = useAuth();
   const socket = useSocket(token);
 
-  // ── Socket listeners (messages + typing only) ──
+  /* ── Socket ── */
   useEffect(() => {
     if (!socket || !thread?.id) return;
-
     socket.emit('join_thread', thread.id);
 
-    socket.on('message_received', (newMessage) => {
+    socket.on('message_received', (msg) => {
       setMessages((prev) => {
-        if (prev.find((m) => m.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
+        if (prev.find((m) => m.id === msg.id)) return prev;
+        setNewMsgIds((s) => new Set([...s, msg.id]));
+        setTimeout(() => setNewMsgIds((s) => { const n = new Set(s); n.delete(msg.id); return n; }), 600);
+        return [...prev, msg];
       });
     });
 
-    socket.on('message_deleted', (messageId) => {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    });
-
-    socket.on('user_typing', (userId) => {
-      setTypingUsers((prev) =>
-        prev.includes(userId) ? prev : [...prev, userId]
-      );
-    });
-
-    socket.on('user_stopped_typing', (userId) => {
-      setTypingUsers((prev) => prev.filter((id) => id !== userId));
-    });
+    socket.on('message_deleted', (id) =>
+      setMessages((prev) => prev.filter((m) => m.id !== id))
+    );
+    socket.on('user_typing', (uid) =>
+      setTypingUsers((p) => (p.includes(uid) ? p : [...p, uid]))
+    );
+    socket.on('user_stopped_typing', (uid) =>
+      setTypingUsers((p) => p.filter((id) => id !== uid))
+    );
 
     return () => {
       socket.emit('leave_thread', thread.id);
@@ -57,136 +70,114 @@ export const Message = ({
     };
   }, [socket, thread?.id]);
 
-  // ── Auto scroll ──
+  /* ── Auto scroll ── */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Typing with debounce ──
-  const handleTyping = useCallback((value) => {
-    setMessage(value);
-  }, []);
+  /* ── Handlers ── */
+  const handleTyping = useCallback((v) => setMessage(v), []);
+  const handleFocus  = useCallback(() => socket?.emit('typing_start', thread.id), [socket, thread?.id]);
+  const handleBlur   = useCallback(() => socket?.emit('typing_stop',  thread.id), [socket, thread?.id]);
 
-  const handleFocus = useCallback(() => {
-    if (!socket) return;
-    socket.emit('typing_start', thread.id);
-  }, [socket, thread?.id]);
-
-  const handleBlur = useCallback(() => {
-    if (!socket) return;
-    socket.emit('typing_stop', thread.id);
-  }, [socket, thread?.id]);
-
-  // ── Send ──
   const handleSend = async () => {
     if (!message.trim() || sending) return;
-
     clearTimeout(typingTimeoutRef.current);
-    if (socket) socket.emit('typing_stop', thread.id);
-
+    socket?.emit('typing_stop', thread.id);
     setSending(true);
     try {
-      const response = await fetch(`/api/threads/${thread.id}/message`, {
+      const res = await fetch(`/api/threads/${thread.id}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: message }),
       });
-
-      const newMessages = await response.json();
+      const newMessages = await res.json();
       const justCreated = newMessages[newMessages.length - 1];
-
+      setNewMsgIds((s) => new Set([...s, justCreated.id]));
+      setTimeout(() => setNewMsgIds((s) => { const n = new Set(s); n.delete(justCreated.id); return n; }), 600);
       setMessages(newMessages);
       setMessage('');
       inputRef.current?.focus();
-
-      if (socket) socket.emit('new_message', justCreated);
+      socket?.emit('new_message', justCreated);
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error(err);
     } finally {
       setSending(false);
     }
   };
 
-  // ── Delete ──
-  const handleDelete = async (messageId) => {
-    setDeletingId(messageId);
+  const handleDelete = async (msgId) => {
+    setDeletingId(msgId);
     try {
-      const response = await fetch(
-        `/api/threads/${thread.id}/message/${messageId}`,
-        { method: 'DELETE' }
-      );
-
-      if (response.ok) {
-        setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        if (socket)
-          socket.emit('delete_message', { threadId: thread.id, messageId });
+      const res = await fetch(`/api/threads/${thread.id}/message/${msgId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMessages((p) => p.filter((m) => m.id !== msgId));
+        socket?.emit('delete_message', { threadId: thread.id, messageId: msgId });
       }
     } catch (err) {
-      console.error('Error deleting message:', err);
+      console.error(err);
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // ── Typing label ──
-  const getTypingLabel = () => {
-    if (typingUsers.length === 0) return null;
+  /* ── Typing label ── */
+  const typingLabel = (() => {
+    if (!typingUsers.length) return null;
     const names = typingUsers.map((uid) => {
       const found = messages.find((m) => m.user?.id === uid);
       return found?.user?.name ?? 'Someone';
     });
-    if (names.length === 1) return `${names[0]} is typing...`;
-    if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`;
-    return 'Several people are typing...';
-  };
+    if (names.length === 1) return `${names[0]} is typing`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are typing`;
+    return 'Several people are typing';
+  })();
 
-  const typingLabel = getTypingLabel();
-  const onlineCount = onlineUsers.filter(
-    (id) => String(id) !== String(currentUserId)
-  ).length;
+  const onlineCount = onlineUsers.filter((id) => String(id) !== String(currentUserId)).length;
+
+  /* ── Group consecutive messages from same sender ── */
+  const grouped = (messages ?? []).map((msg, i, arr) => {
+    const prev = arr[i - 1];
+    const showAvatar = !prev || prev.user?.id !== msg.user?.id ||
+      new Date(msg.createdAt) - new Date(prev.createdAt) > 5 * 60 * 1000;
+    return { msg, showAvatar };
+  });
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1f3d] text-white font-sans">
-      {/* Header */}
-      <div className="h-14 px-5 flex items-center justify-between border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-white/40 text-lg font-light">#</span>
-          <span className="font-semibold tracking-wide">
-            {thread?.title || 'conversation'}
-          </span>
-          <span className="ml-1 text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">
-            {messages?.length ?? 0}
-          </span>
+    <div className="msg-panel">
+      {/* ── Header ── */}
+      <div className="msg-panel__header">
+        <div className="msg-panel__header-left">
+          <div className="msg-panel__channel-icon">
+            <FontAwesomeIcon icon={faHashtag} />
+          </div>
+          <span className="msg-panel__channel-name">{thread?.title || 'channel'}</span>
+          <span className="msg-panel__count">{messages?.length ?? 0}</span>
         </div>
         {onlineCount > 0 && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-400">
-              {onlineCount} online
-            </span>
+          <div className="msg-panel__online">
+            <span className="msg-panel__online-dot" />
+            <span className="msg-panel__online-label">{onlineCount} online</span>
           </div>
         )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-        {messages?.length > 0 ? (
-          messages.map((msg) => (
+      {/* ── Messages ── */}
+      <div className="msg-panel__body scrollbar-thin">
+        {grouped.length > 0 ? (
+          grouped.map(({ msg, showAvatar }) => (
             <MessageRow
               key={msg.id}
               msg={msg}
               isOwn={String(msg.user?.id) === String(currentUserId)}
+              showAvatar={showAvatar}
               isDeleting={deletingId === msg.id}
-              isOnline={onlineUsers.some(
-                (id) => String(id) === String(msg.user?.id)
-              )}
+              isNew={newMsgIds.has(msg.id)}
+              isOnline={onlineUsers.some((id) => String(id) === String(msg.user?.id))}
               onDelete={
                 String(msg.user?.id) === String(currentUserId)
                   ? () => handleDelete(msg.id)
@@ -195,28 +186,31 @@ export const Message = ({
             />
           ))
         ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-white/30">
-            <span className="text-4xl">💬</span>
-            <p className="text-sm">No messages yet. Start the conversation.</p>
+          <div className="msg-panel__empty">
+            <div className="msg-panel__empty-icon">💬</div>
+            <p className="msg-panel__empty-title">No messages yet</p>
+            <p className="msg-panel__empty-sub">Be the first to say something</p>
           </div>
         )}
+
+        {/* Typing indicator */}
+        {typingLabel && (
+          <div className="msg-typing">
+            <div className="msg-typing__dots">
+              <span /><span /><span />
+            </div>
+            <span className="msg-typing__label">{typingLabel}…</span>
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 
-      {/* Typing indicator */}
-      <div className="px-6 h-5 flex items-center">
-        {typingLabel && (
-          <p className="text-xs text-white/40 italic animate-pulse">
-            {typingLabel}
-          </p>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="px-4 pb-4 pt-1 border-t border-white/10 shrink-0">
-        <div className="flex items-center gap-2 bg-[#1a3260] rounded-xl px-4 py-3 ring-1 ring-white/10 focus-within:ring-white/25 transition-all duration-200">
-          <button className="text-white/40 hover:text-white/70 transition-colors text-xl leading-none">
-            +
+      {/* ── Input ── */}
+      <div className="msg-panel__footer">
+        <div className={`msg-input-wrap ${message.trim() ? 'is-active' : ''}`}>
+          <button className="msg-input__attach" title="Attach">
+            <FontAwesomeIcon icon={faPlus} />
           </button>
           <input
             ref={inputRef}
@@ -224,138 +218,107 @@ export const Message = ({
             value={message}
             placeholder={`Message #${thread?.title || 'channel'}`}
             onChange={(e) => handleTyping(e.target.value)}
-            onFocus={handleFocus} // ← user clicks input = typing
-            onBlur={handleBlur} // ← user clicks away = stopped
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent outline-none text-sm placeholder-white/30 text-white"
+            className="msg-input__field"
           />
           <button
             onClick={handleSend}
             disabled={!message.trim() || sending}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 shrink-0
-              ${
-                message.trim() && !sending
-                  ? 'bg-amber-400 text-black hover:bg-amber-300'
-                  : 'bg-white/10 text-white/30 cursor-not-allowed'
-              }`}
+            className={`msg-input__send ${message.trim() && !sending ? 'is-ready' : ''}`}
+            title="Send"
           >
-            {sending ? '…' : '↑'}
+            {sending
+              ? <span className="msg-input__send-spinner" />
+              : <FontAwesomeIcon icon={faPaperPlane} />
+            }
           </button>
         </div>
-        <p className="text-white/20 text-xs mt-2 text-center">
-          Enter to send · Shift+Enter for new line
-        </p>
+        <p className="msg-input__hint">Enter to send · Shift+Enter for new line</p>
       </div>
     </div>
   );
 };
 
-// ── Message Row ──
-function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
+/* ──────────────────────────────────────────────
+   MESSAGE ROW
+────────────────────────────────────────────── */
+function MessageRow({ msg, isOwn, showAvatar, isDeleting, isNew, isOnline, onDelete }) {
   const [hovered, setHovered] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteClick = () => {
-    if (confirmDelete) {
-      onDelete();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
+    if (confirmDelete) { onDelete(); setConfirmDelete(false); }
+    else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); }
   };
+
+  const gradient = getGradient(msg.user?.name || '');
+  const initial  = msg.user?.name?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => {
-        setHovered(false);
-        setConfirmDelete(false);
-      }}
-      className={`flex items-end gap-2 px-2 py-1 transition-all duration-150
-        ${isOwn ? 'flex-row-reverse' : 'flex-row'}
-        ${isDeleting ? 'opacity-40 scale-95' : ''}
-      `}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      className={[
+        'msg-row',
+        isOwn      ? 'msg-row--own'      : '',
+        isDeleting ? 'msg-row--deleting' : '',
+        isNew      ? 'msg-row--new'      : '',
+        !showAvatar ? 'msg-row--compact' : '',
+      ].filter(Boolean).join(' ')}
     >
-      {/* Avatar with online dot — only for others */}
-      {!isOwn && (
-        <div className="relative shrink-0 mb-1">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white">
-            {msg.user?.name?.[0]?.toUpperCase() ?? '?'}
+      {/* Avatar column */}
+      <div className="msg-row__avatar-col">
+        {showAvatar ? (
+          <div className="msg-row__avatar-wrap">
+            <div className="msg-row__avatar" style={{ background: gradient }}>
+              {initial}
+            </div>
+            {isOnline && <span className="msg-row__online-dot" />}
           </div>
-          {isOnline && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0f1f3d]" />
-          )}
-        </div>
-      )}
+        ) : (
+          <span className={`msg-row__time-peek ${hovered ? 'is-visible' : ''}`}>
+            {formatTime(msg.createdAt)}
+          </span>
+        )}
+      </div>
 
-      <div
-        className={`flex flex-col max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}
-      >
-        {/* Name + time for others */}
-        {!isOwn && (
-          <div className="flex items-baseline gap-2 mb-1 px-1">
-            <span className="text-xs font-semibold text-white/70">
+      {/* Content */}
+      <div className="msg-row__content">
+        {showAvatar && (
+          <div className="msg-row__meta">
+            <span className="msg-row__name" style={{ background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {msg.user?.name ?? 'Unknown'}
             </span>
-            <span className="text-xs text-white/30">
-              {msg.createdAt
-                ? new Date(msg.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : ''}
-            </span>
+            <span className="msg-row__time">{formatTime(msg.createdAt)}</span>
           </div>
         )}
 
-        <div
-          className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
-        >
-          {/* Bubble */}
-          <div
-            className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words
-            ${
-              isOwn
-                ? 'bg-amber-400 text-black rounded-br-sm'
-                : 'bg-[#1a3260] text-white/85 rounded-bl-sm'
-            }`}
-          >
+        <div className="msg-row__bubble-row">
+          <div className={`msg-row__bubble ${isOwn ? 'msg-row__bubble--own' : ''}`}>
             {msg.content}
           </div>
 
-          {/* Delete — own messages only, hover reveal */}
+          {/* Delete action */}
           {isOwn && onDelete && (
-            <div
-              className={`transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
-            >
+            <div className={`msg-row__actions ${hovered ? 'is-visible' : ''}`}>
               <button
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-150
-                  ${
-                    confirmDelete
-                      ? 'bg-red-500 text-white hover:bg-red-400'
-                      : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
-                  }`}
+                className={`msg-row__delete-btn ${confirmDelete ? 'is-confirm' : ''}`}
+                title={confirmDelete ? 'Click again to confirm' : 'Delete message'}
               >
-                {isDeleting ? '…' : confirmDelete ? '✕ Sure?' : '🗑'}
+                {isDeleting
+                  ? '…'
+                  : confirmDelete
+                  ? '✕ Sure?'
+                  : <FontAwesomeIcon icon={faTrash} />
+                }
               </button>
             </div>
           )}
         </div>
-
-        {/* Timestamp for own messages */}
-        {isOwn && (
-          <span className="text-xs text-white/30 mt-1 px-1">
-            {msg.createdAt
-              ? new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : ''}
-          </span>
-        )}
       </div>
     </div>
   );
