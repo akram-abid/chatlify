@@ -2,7 +2,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/context/AuthContext';
-import { faHashtag, faPaperPlane, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faHashtag,
+  faPaperPlane,
+  faPlus,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 /* ── avatar gradients ── */
@@ -15,7 +20,8 @@ const GRADIENTS = [
   'linear-gradient(135deg, #059669, #047857)',
   'linear-gradient(135deg, #2563eb, #1d4ed8)',
 ];
-const getGradient = (name = '') => GRADIENTS[name.charCodeAt(0) % GRADIENTS.length];
+const getGradient = (name = '') =>
+  GRADIENTS[name.charCodeAt(0) % GRADIENTS.length];
 
 const formatTime = (d) =>
   new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -23,7 +29,12 @@ const formatTime = (d) =>
 /* ──────────────────────────────────────────────
    MAIN MESSAGE COMPONENT
 ────────────────────────────────────────────── */
-export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => {
+export const Message = ({
+  thread,
+  messages,
+  setMessages,
+  onlineUsers = [],
+}) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -45,10 +56,17 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
     socket.on('message_received', (msg) => {
       setMessages((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
-        setNewMsgIds((s) => new Set([...s, msg.id]));
-        setTimeout(() => setNewMsgIds((s) => { const n = new Set(s); n.delete(msg.id); return n; }), 600);
         return [...prev, msg];
       });
+      // setNewMsgIds outside setMessages
+      setNewMsgIds((s) => new Set([...s, msg.id]));
+      setTimeout(() => {
+        setNewMsgIds((s) => {
+          const n = new Set(s);
+          n.delete(msg.id);
+          return n;
+        });
+      }, 600);
     });
 
     socket.on('message_deleted', (id) =>
@@ -77,8 +95,14 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
 
   /* ── Handlers ── */
   const handleTyping = useCallback((v) => setMessage(v), []);
-  const handleFocus  = useCallback(() => socket?.emit('typing_start', thread.id), [socket, thread?.id]);
-  const handleBlur   = useCallback(() => socket?.emit('typing_stop',  thread.id), [socket, thread?.id]);
+  const handleFocus = useCallback(
+    () => socket?.emit('typing_start', thread.id),
+    [socket, thread?.id]
+  );
+  const handleBlur = useCallback(
+    () => socket?.emit('typing_stop', thread.id),
+    [socket, thread?.id]
+  );
 
   const handleSend = async () => {
     if (!message.trim() || sending) return;
@@ -93,10 +117,20 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
       });
       const newMessages = await res.json();
       const justCreated = newMessages[newMessages.length - 1];
-      setNewMsgIds((s) => new Set([...s, justCreated.id]));
-      setTimeout(() => setNewMsgIds((s) => { const n = new Set(s); n.delete(justCreated.id); return n; }), 600);
+
       setMessages(newMessages);
       setMessage('');
+
+      setNewMsgIds((s) => new Set([...s, justCreated.id]));
+      setTimeout(
+        () =>
+          setNewMsgIds((s) => {
+            const n = new Set(s);
+            n.delete(justCreated.id);
+            return n;
+          }),
+        600
+      );
       inputRef.current?.focus();
       socket?.emit('new_message', justCreated);
     } catch (err) {
@@ -109,10 +143,15 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
   const handleDelete = async (msgId) => {
     setDeletingId(msgId);
     try {
-      const res = await fetch(`/api/threads/${thread.id}/message/${msgId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/threads/${thread.id}/message/${msgId}`, {
+        method: 'DELETE',
+      });
       if (res.ok) {
         setMessages((p) => p.filter((m) => m.id !== msgId));
-        socket?.emit('delete_message', { threadId: thread.id, messageId: msgId });
+        socket?.emit('delete_message', {
+          threadId: thread.id,
+          messageId: msgId,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -122,7 +161,10 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   /* ── Typing label ── */
@@ -137,12 +179,16 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
     return 'Several people are typing';
   })();
 
-  const onlineCount = onlineUsers.filter((id) => String(id) !== String(currentUserId)).length;
+  const onlineCount = onlineUsers.filter(
+    (id) => String(id) !== String(currentUserId)
+  ).length;
 
   /* ── Group consecutive messages from same sender ── */
   const grouped = (messages ?? []).map((msg, i, arr) => {
     const prev = arr[i - 1];
-    const showAvatar = !prev || prev.user?.id !== msg.user?.id ||
+    const showAvatar =
+      !prev ||
+      prev.user?.id !== msg.user?.id ||
       new Date(msg.createdAt) - new Date(prev.createdAt) > 5 * 60 * 1000;
     return { msg, showAvatar };
   });
@@ -155,13 +201,17 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
           <div className="msg-panel__channel-icon">
             <FontAwesomeIcon icon={faHashtag} />
           </div>
-          <span className="msg-panel__channel-name">{thread?.title || 'channel'}</span>
+          <span className="msg-panel__channel-name">
+            {thread?.title || 'channel'}
+          </span>
           <span className="msg-panel__count">{messages?.length ?? 0}</span>
         </div>
         {onlineCount > 0 && (
           <div className="msg-panel__online">
             <span className="msg-panel__online-dot" />
-            <span className="msg-panel__online-label">{onlineCount} online</span>
+            <span className="msg-panel__online-label">
+              {onlineCount} online
+            </span>
           </div>
         )}
       </div>
@@ -177,7 +227,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
               showAvatar={showAvatar}
               isDeleting={deletingId === msg.id}
               isNew={newMsgIds.has(msg.id)}
-              isOnline={onlineUsers.some((id) => String(id) === String(msg.user?.id))}
+              isOnline={onlineUsers.some(
+                (id) => String(id) === String(msg.user?.id)
+              )}
               onDelete={
                 String(msg.user?.id) === String(currentUserId)
                   ? () => handleDelete(msg.id)
@@ -189,7 +241,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
           <div className="msg-panel__empty">
             <div className="msg-panel__empty-icon">💬</div>
             <p className="msg-panel__empty-title">No messages yet</p>
-            <p className="msg-panel__empty-sub">Be the first to say something</p>
+            <p className="msg-panel__empty-sub">
+              Be the first to say something
+            </p>
           </div>
         )}
 
@@ -197,7 +251,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
         {typingLabel && (
           <div className="msg-typing">
             <div className="msg-typing__dots">
-              <span /><span /><span />
+              <span />
+              <span />
+              <span />
             </div>
             <span className="msg-typing__label">{typingLabel}…</span>
           </div>
@@ -229,13 +285,16 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
             className={`msg-input__send ${message.trim() && !sending ? 'is-ready' : ''}`}
             title="Send"
           >
-            {sending
-              ? <span className="msg-input__send-spinner" />
-              : <FontAwesomeIcon icon={faPaperPlane} />
-            }
+            {sending ? (
+              <span className="msg-input__send-spinner" />
+            ) : (
+              <FontAwesomeIcon icon={faPaperPlane} />
+            )}
           </button>
         </div>
-        <p className="msg-input__hint">Enter to send · Shift+Enter for new line</p>
+        <p className="msg-input__hint">
+          Enter to send · Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
@@ -244,29 +303,47 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
 /* ──────────────────────────────────────────────
    MESSAGE ROW
 ────────────────────────────────────────────── */
-function MessageRow({ msg, isOwn, showAvatar, isDeleting, isNew, isOnline, onDelete }) {
+function MessageRow({
+  msg,
+  isOwn,
+  showAvatar,
+  isDeleting,
+  isNew,
+  isOnline,
+  onDelete,
+}) {
   const [hovered, setHovered] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteClick = () => {
-    if (confirmDelete) { onDelete(); setConfirmDelete(false); }
-    else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); }
+    if (confirmDelete) {
+      onDelete();
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
   };
 
   const gradient = getGradient(msg.user?.name || '');
-  const initial  = msg.user?.name?.[0]?.toUpperCase() ?? '?';
+  const initial = msg.user?.name?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      onMouseLeave={() => {
+        setHovered(false);
+        setConfirmDelete(false);
+      }}
       className={[
         'msg-row',
-        isOwn      ? 'msg-row--own'      : '',
+        isOwn ? 'msg-row--own' : '',
         isDeleting ? 'msg-row--deleting' : '',
-        isNew      ? 'msg-row--new'      : '',
+        isNew ? 'msg-row--new' : '',
         !showAvatar ? 'msg-row--compact' : '',
-      ].filter(Boolean).join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {/* Avatar column */}
       <div className="msg-row__avatar-col">
@@ -288,7 +365,14 @@ function MessageRow({ msg, isOwn, showAvatar, isDeleting, isNew, isOnline, onDel
       <div className="msg-row__content">
         {showAvatar && (
           <div className="msg-row__meta">
-            <span className="msg-row__name" style={{ background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <span
+              className="msg-row__name"
+              style={{
+                background: gradient,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
               {msg.user?.name ?? 'Unknown'}
             </span>
             <span className="msg-row__time">{formatTime(msg.createdAt)}</span>
@@ -296,7 +380,9 @@ function MessageRow({ msg, isOwn, showAvatar, isDeleting, isNew, isOnline, onDel
         )}
 
         <div className="msg-row__bubble-row">
-          <div className={`msg-row__bubble ${isOwn ? 'msg-row__bubble--own' : ''}`}>
+          <div
+            className={`msg-row__bubble ${isOwn ? 'msg-row__bubble--own' : ''}`}
+          >
             {msg.content}
           </div>
 
@@ -307,14 +393,17 @@ function MessageRow({ msg, isOwn, showAvatar, isDeleting, isNew, isOnline, onDel
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
                 className={`msg-row__delete-btn ${confirmDelete ? 'is-confirm' : ''}`}
-                title={confirmDelete ? 'Click again to confirm' : 'Delete message'}
-              >
-                {isDeleting
-                  ? '…'
-                  : confirmDelete
-                  ? '✕ Sure?'
-                  : <FontAwesomeIcon icon={faTrash} />
+                title={
+                  confirmDelete ? 'Click again to confirm' : 'Delete message'
                 }
+              >
+                {isDeleting ? (
+                  '…'
+                ) : confirmDelete ? (
+                  '✕ Sure?'
+                ) : (
+                  <FontAwesomeIcon icon={faTrash} />
+                )}
               </button>
             </div>
           )}

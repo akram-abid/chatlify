@@ -4,7 +4,12 @@ import Image from 'next/image';
 import ThemeSwitcherButton from './ThemeSwitcher';
 import LogoutButton from './ui/LogoutButton';
 
-const Navrow = ({ workspaces, updateSections, onSelectWorkspace, selectedWorkspaceId }) => {
+const Navrow = ({
+  workspaces = [],
+  updateSections,
+  onSelectWorkspace,
+  selectedWorkspaceId,
+}) => {
   const handleClick = (ws) => {
     updateSections(ws.sections);
     onSelectWorkspace(ws);
@@ -15,7 +20,13 @@ const Navrow = ({ workspaces, updateSections, onSelectWorkspace, selectedWorkspa
       {/* Logo */}
       <div className="navrow__logo">
         <div className="navrow__logo-ring">
-          <Image src="/logo.png" alt="logo" width={28} height={28} className="navrow__logo-img" />
+          <Image
+            src="/logo.png"
+            alt="logo"
+            width={28}
+            height={28}
+            className="navrow__logo-img"
+          />
         </div>
       </div>
 

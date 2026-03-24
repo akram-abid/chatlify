@@ -23,7 +23,9 @@ export default function Home() {
     socket.emit('join_workspace', selectedWorkspaceId);
     socket.on('online_users', (userIds) => setOnlineUsers(userIds));
     socket.on('user_online', (userId) =>
-      setOnlineUsers((prev) => (prev.includes(userId) ? prev : [...prev, userId]))
+      setOnlineUsers((prev) =>
+        prev.includes(userId) ? prev : [...prev, userId]
+      )
     );
     socket.on('user_offline', (userId) =>
       setOnlineUsers((prev) => prev.filter((id) => id !== userId))
@@ -41,7 +43,7 @@ export default function Home() {
       try {
         const res = await fetch('/api/workspaces/');
         const data = await res.json();
-        SetWs(data.workspaces);
+        SetWs(data.workspaces ?? []);
       } catch (err) {
         console.error(err);
       }
