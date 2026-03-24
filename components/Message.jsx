@@ -3,7 +3,12 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/context/AuthContext';
 
-export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => {
+export const Message = ({
+  thread,
+  messages,
+  setMessages,
+  onlineUsers = [],
+}) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -60,13 +65,16 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
   // ── Typing with debounce ──
   const handleTyping = useCallback((value) => {
     setMessage(value);
-    if (!socket) return;
+  }, []);
 
+  const handleFocus = useCallback(() => {
+    if (!socket) return;
     socket.emit('typing_start', thread.id);
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing_stop', thread.id);
-    }, 1500);
+  }, [socket, thread?.id]);
+
+  const handleBlur = useCallback(() => {
+    if (!socket) return;
+    socket.emit('typing_stop', thread.id);
   }, [socket, thread?.id]);
 
   // ── Send ──
@@ -110,7 +118,8 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
 
       if (response.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        if (socket) socket.emit('delete_message', { threadId: thread.id, messageId });
+        if (socket)
+          socket.emit('delete_message', { threadId: thread.id, messageId });
       }
     } catch (err) {
       console.error('Error deleting message:', err);
@@ -145,12 +154,13 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
 
   return (
     <div className="flex flex-col h-full bg-[#0f1f3d] text-white font-sans">
-
       {/* Header */}
       <div className="h-14 px-5 flex items-center justify-between border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-white/40 text-lg font-light">#</span>
-          <span className="font-semibold tracking-wide">{thread?.title || 'conversation'}</span>
+          <span className="font-semibold tracking-wide">
+            {thread?.title || 'conversation'}
+          </span>
           <span className="ml-1 text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">
             {messages?.length ?? 0}
           </span>
@@ -158,7 +168,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
         {onlineCount > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-400">{onlineCount} online</span>
+            <span className="text-xs text-emerald-400">
+              {onlineCount} online
+            </span>
           </div>
         )}
       </div>
@@ -172,7 +184,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
               msg={msg}
               isOwn={String(msg.user?.id) === String(currentUserId)}
               isDeleting={deletingId === msg.id}
-              isOnline={onlineUsers.some((id) => String(id) === String(msg.user?.id))}
+              isOnline={onlineUsers.some(
+                (id) => String(id) === String(msg.user?.id)
+              )}
               onDelete={
                 String(msg.user?.id) === String(currentUserId)
                   ? () => handleDelete(msg.id)
@@ -192,7 +206,9 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
       {/* Typing indicator */}
       <div className="px-6 h-5 flex items-center">
         {typingLabel && (
-          <p className="text-xs text-white/40 italic animate-pulse">{typingLabel}</p>
+          <p className="text-xs text-white/40 italic animate-pulse">
+            {typingLabel}
+          </p>
         )}
       </div>
 
@@ -208,6 +224,8 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
             value={message}
             placeholder={`Message #${thread?.title || 'channel'}`}
             onChange={(e) => handleTyping(e.target.value)}
+            onFocus={handleFocus} // ← user clicks input = typing
+            onBlur={handleBlur} // ← user clicks away = stopped
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent outline-none text-sm placeholder-white/30 text-white"
           />
@@ -215,9 +233,10 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
             onClick={handleSend}
             disabled={!message.trim() || sending}
             className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 shrink-0
-              ${message.trim() && !sending
-                ? 'bg-amber-400 text-black hover:bg-amber-300'
-                : 'bg-white/10 text-white/30 cursor-not-allowed'
+              ${
+                message.trim() && !sending
+                  ? 'bg-amber-400 text-black hover:bg-amber-300'
+                  : 'bg-white/10 text-white/30 cursor-not-allowed'
               }`}
           >
             {sending ? '…' : '↑'}
@@ -230,7 +249,6 @@ export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => 
     </div>
   );
 };
-
 
 // ── Message Row ──
 function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
@@ -250,7 +268,10 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
   return (
     <div
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      onMouseLeave={() => {
+        setHovered(false);
+        setConfirmDelete(false);
+      }}
       className={`flex items-end gap-2 px-2 py-1 transition-all duration-150
         ${isOwn ? 'flex-row-reverse' : 'flex-row'}
         ${isDeleting ? 'opacity-40 scale-95' : ''}
@@ -268,27 +289,36 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
         </div>
       )}
 
-      <div className={`flex flex-col max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}>
-
+      <div
+        className={`flex flex-col max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}
+      >
         {/* Name + time for others */}
         {!isOwn && (
           <div className="flex items-baseline gap-2 mb-1 px-1">
-            <span className="text-xs font-semibold text-white/70">{msg.user?.name ?? 'Unknown'}</span>
+            <span className="text-xs font-semibold text-white/70">
+              {msg.user?.name ?? 'Unknown'}
+            </span>
             <span className="text-xs text-white/30">
               {msg.createdAt
-                ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                ? new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
                 : ''}
             </span>
           </div>
         )}
 
-        <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-
+        <div
+          className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+        >
           {/* Bubble */}
-          <div className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words
-            ${isOwn
-              ? 'bg-amber-400 text-black rounded-br-sm'
-              : 'bg-[#1a3260] text-white/85 rounded-bl-sm'
+          <div
+            className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words
+            ${
+              isOwn
+                ? 'bg-amber-400 text-black rounded-br-sm'
+                : 'bg-[#1a3260] text-white/85 rounded-bl-sm'
             }`}
           >
             {msg.content}
@@ -296,14 +326,17 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
 
           {/* Delete — own messages only, hover reveal */}
           {isOwn && onDelete && (
-            <div className={`transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+            <div
+              className={`transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+            >
               <button
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-150
-                  ${confirmDelete
-                    ? 'bg-red-500 text-white hover:bg-red-400'
-                    : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
+                  ${
+                    confirmDelete
+                      ? 'bg-red-500 text-white hover:bg-red-400'
+                      : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
                   }`}
               >
                 {isDeleting ? '…' : confirmDelete ? '✕ Sure?' : '🗑'}
@@ -316,7 +349,10 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
         {isOwn && (
           <span className="text-xs text-white/30 mt-1 px-1">
             {msg.createdAt
-              ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              ? new Date(msg.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
               : ''}
           </span>
         )}

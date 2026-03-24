@@ -89,6 +89,7 @@ app.prepare().then(() => {
 
     // ── Typing (thread-scoped, makes sense) ──
     socket.on('typing_start', (threadId) => {
+      const room = io.sockets.adapter.rooms.get(`thread:${threadId}`);
       socket.to(`thread:${threadId}`).emit('user_typing', socket.userId);
     });
 
