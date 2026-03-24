@@ -42,60 +42,70 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userId}`);
 
-    // ── Thread room ──
-    socket.on('join_thread', async (threadId) => {
-      socket.join(threadId);
-      console.log(`User ${socket.userId} joined thread ${threadId}`); // check terminal
+    // ── Workspace presence (join as soon as user opens the workspace) ──
+    socket.on('join_workspace', async (workspaceId) => {
+      socket.join(`workspace:${workspaceId}`);
 
-      // Tell everyone in the room this user is online
-      socket.to(threadId).emit('user_online', socket.userId);
+      // Tell others this user is now online
+      socket.to(`workspace:${workspaceId}`).emit('user_online', socket.userId);
 
-      // Tell the joining user who's already online in this room
-      const sockets = await io.in(threadId).fetchSockets();
+      // Tell the joining user who's already online in this workspace
+      const sockets = await io.in(`workspace:${workspaceId}`).fetchSockets();
       const onlineUserIds = sockets
         .map((s) => s.userId)
         .filter((id) => id !== socket.userId);
 
       socket.emit('online_users', onlineUserIds);
+
+      console.log(`User ${socket.userId} joined workspace ${workspaceId}`);
+    });
+
+    socket.on('leave_workspace', (workspaceId) => {
+      socket.leave(`workspace:${workspaceId}`);
+      socket.to(`workspace:${workspaceId}`).emit('user_offline', socket.userId);
+    });
+
+    // ── Thread room (only for messages and typing) ──
+    socket.on('join_thread', (threadId) => {
+      socket.join(`thread:${threadId}`);
     });
 
     socket.on('leave_thread', (threadId) => {
-      socket.leave(threadId);
-      socket.to(threadId).emit('user_offline', socket.userId);
+      socket.leave(`thread:${threadId}`);
+      // also clear typing when leaving
+      socket
+        .to(`thread:${threadId}`)
+        .emit('user_stopped_typing', socket.userId);
     });
 
     // ── Messages ──
     socket.on('new_message', (message) => {
-      io.to(message.threadId).emit('message_received', message);
+      io.to(`thread:${message.threadId}`).emit('message_received', message);
     });
 
     socket.on('delete_message', ({ threadId, messageId }) => {
-      io.to(threadId).emit('message_deleted', messageId);
+      io.to(`thread:${threadId}`).emit('message_deleted', messageId);
     });
 
-    // ── Typing ──
+    // ── Typing (thread-scoped, makes sense) ──
     socket.on('typing_start', (threadId) => {
-      console.log(`${socket.userId} is typing in ${threadId}`); // add this
-      socket.to(threadId).emit('user_typing', socket.userId);
-    }); 
+      socket.to(`thread:${threadId}`).emit('user_typing', socket.userId);
+    });
 
     socket.on('typing_stop', (threadId) => {
-      socket.to(threadId).emit('user_stopped_typing', socket.userId);
+      socket
+        .to(`thread:${threadId}`)
+        .emit('user_stopped_typing', socket.userId);
     });
 
     // ── Disconnect ──
     socket.on('disconnecting', () => {
-      // disconnecting fires before the socket leaves rooms
-      // so we can still read socket.rooms
       for (const room of socket.rooms) {
         if (room !== socket.id) {
           socket.to(room).emit('user_offline', socket.userId);
+          socket.to(room).emit('user_stopped_typing', socket.userId);
         }
       }
-    });
-
-    socket.on('disconnect', () => {
-      console.log(`User disconnected: ${socket.userId}`);
     });
   });
 

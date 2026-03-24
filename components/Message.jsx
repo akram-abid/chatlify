@@ -3,30 +3,23 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/context/AuthContext';
 
-export const Message = ({ thread, messages, setMessages }) => {
+export const Message = ({ thread, messages, setMessages, onlineUsers = [] }) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [typingUsers, setTypingUsers] = useState([]); // userIds currently typing
-  const [onlineUsers, setOnlineUsers] = useState([]); // userIds online in thread
+  const [typingUsers, setTypingUsers] = useState([]);
+
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-  const typingTimeoutRef = useRef(null); // to debounce typing_stop
+  const typingTimeoutRef = useRef(null);
 
   const { currentUserId, token } = useAuth();
   const socket = useSocket(token);
 
-  // ── Socket listeners ──
+  // ── Socket listeners (messages + typing only) ──
   useEffect(() => {
-    if (!socket || !thread?.id) {
-      console.log('socket or thread missing:', {
-        socket: !!socket,
-        threadId: thread?.id,
-      });
-      return;
-    }
+    if (!socket || !thread?.id) return;
 
-    console.log('joining thread:', thread.id);
     socket.emit('join_thread', thread.id);
 
     socket.on('message_received', (newMessage) => {
@@ -41,7 +34,6 @@ export const Message = ({ thread, messages, setMessages }) => {
     });
 
     socket.on('user_typing', (userId) => {
-      console.log('user_typing received:', userId); // add this
       setTypingUsers((prev) =>
         prev.includes(userId) ? prev : [...prev, userId]
       );
@@ -51,59 +43,36 @@ export const Message = ({ thread, messages, setMessages }) => {
       setTypingUsers((prev) => prev.filter((id) => id !== userId));
     });
 
-    socket.on('online_users', (userIds) => {
-      setOnlineUsers(userIds);
-    });
-
-    socket.on('user_online', (userId) => {
-      setOnlineUsers((prev) =>
-        prev.includes(userId) ? prev : [...prev, userId]
-      );
-    });
-
-    socket.on('user_offline', (userId) => {
-      setOnlineUsers((prev) => prev.filter((id) => id !== userId));
-      setTypingUsers((prev) => prev.filter((id) => id !== userId));
-    });
-
     return () => {
       socket.emit('leave_thread', thread.id);
       socket.off('message_received');
       socket.off('message_deleted');
       socket.off('user_typing');
       socket.off('user_stopped_typing');
-      socket.off('online_users');
-      socket.off('user_online');
-      socket.off('user_offline');
     };
   }, [socket, thread?.id]);
 
+  // ── Auto scroll ──
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Typing emit with debounce ──
-  const handleTyping = useCallback(
-    (value) => {
-      setMessage(value);
-      if (!socket) return;
+  // ── Typing with debounce ──
+  const handleTyping = useCallback((value) => {
+    setMessage(value);
+    if (!socket) return;
 
-      console.log('emitting typing_start for thread:', thread.id); // add this
-      socket.emit('typing_start', thread.id);
-
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit('typing_stop', thread.id);
-      }, 1500);
-    },
-    [socket, thread?.id]
-  );
+    socket.emit('typing_start', thread.id);
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', thread.id);
+    }, 1500);
+  }, [socket, thread?.id]);
 
   // ── Send ──
   const handleSend = async () => {
     if (!message.trim() || sending) return;
 
-    // Stop typing indicator immediately on send
     clearTimeout(typingTimeoutRef.current);
     if (socket) socket.emit('typing_stop', thread.id);
 
@@ -141,8 +110,7 @@ export const Message = ({ thread, messages, setMessages }) => {
 
       if (response.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        if (socket)
-          socket.emit('delete_message', { threadId: thread.id, messageId });
+        if (socket) socket.emit('delete_message', { threadId: thread.id, messageId });
       }
     } catch (err) {
       console.error('Error deleting message:', err);
@@ -158,51 +126,41 @@ export const Message = ({ thread, messages, setMessages }) => {
     }
   };
 
-  // ── Typing indicator label ──
-  // We show names not IDs — get them from messages we already have
+  // ── Typing label ──
   const getTypingLabel = () => {
     if (typingUsers.length === 0) return null;
-
     const names = typingUsers.map((uid) => {
       const found = messages.find((m) => m.user?.id === uid);
       return found?.user?.name ?? 'Someone';
     });
-
     if (names.length === 1) return `${names[0]} is typing...`;
     if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`;
     return 'Several people are typing...';
   };
 
   const typingLabel = getTypingLabel();
-
-  // ── Online count (excluding self) ──
-  const onlineCount = onlineUsers.filter((id) => id !== currentUserId).length;
+  const onlineCount = onlineUsers.filter(
+    (id) => String(id) !== String(currentUserId)
+  ).length;
 
   return (
     <div className="flex flex-col h-full bg-[#0f1f3d] text-white font-sans">
+
       {/* Header */}
       <div className="h-14 px-5 flex items-center justify-between border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-white/40 text-lg">#</span>
-          <span className="font-semibold">
-            {thread?.title || 'conversation'}
-          </span>
-          <span className="text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">
+          <span className="text-white/40 text-lg font-light">#</span>
+          <span className="font-semibold tracking-wide">{thread?.title || 'conversation'}</span>
+          <span className="ml-1 text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">
             {messages?.length ?? 0}
           </span>
         </div>
-
-        {/* Online presence */}
-        <div className="flex items-center gap-2 text-sm text-white/40">
-          {onlineCount > 0 && (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-400">
-                {onlineCount} online
-              </span>
-            </div>
-          )}
-        </div>
+        {onlineCount > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-emerald-400">{onlineCount} online</span>
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -214,9 +172,9 @@ export const Message = ({ thread, messages, setMessages }) => {
               msg={msg}
               isOwn={String(msg.user?.id) === String(currentUserId)}
               isDeleting={deletingId === msg.id}
-              isOnline={onlineUsers.includes(msg.user?.id)}
+              isOnline={onlineUsers.some((id) => String(id) === String(msg.user?.id))}
               onDelete={
-                msg.user?.id === currentUserId
+                String(msg.user?.id) === String(currentUserId)
                   ? () => handleDelete(msg.id)
                   : null
               }
@@ -234,9 +192,7 @@ export const Message = ({ thread, messages, setMessages }) => {
       {/* Typing indicator */}
       <div className="px-6 h-5 flex items-center">
         {typingLabel && (
-          <p className="text-xs text-white/40 italic animate-pulse">
-            {typingLabel}
-          </p>
+          <p className="text-xs text-white/40 italic animate-pulse">{typingLabel}</p>
         )}
       </div>
 
@@ -259,10 +215,9 @@ export const Message = ({ thread, messages, setMessages }) => {
             onClick={handleSend}
             disabled={!message.trim() || sending}
             className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 shrink-0
-              ${
-                message.trim() && !sending
-                  ? 'bg-amber-400 text-black hover:bg-amber-300'
-                  : 'bg-white/10 text-white/30 cursor-not-allowed'
+              ${message.trim() && !sending
+                ? 'bg-amber-400 text-black hover:bg-amber-300'
+                : 'bg-white/10 text-white/30 cursor-not-allowed'
               }`}
           >
             {sending ? '…' : '↑'}
@@ -276,6 +231,8 @@ export const Message = ({ thread, messages, setMessages }) => {
   );
 };
 
+
+// ── Message Row ──
 function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
   const [hovered, setHovered] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -293,18 +250,15 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
   return (
     <div
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => {
-        setHovered(false);
-        setConfirmDelete(false);
-      }}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
       className={`flex items-end gap-2 px-2 py-1 transition-all duration-150
         ${isOwn ? 'flex-row-reverse' : 'flex-row'}
         ${isDeleting ? 'opacity-40 scale-95' : ''}
       `}
     >
-      {/* Avatar with online dot */}
+      {/* Avatar with online dot — only for others */}
       {!isOwn && (
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 mb-1">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white">
             {msg.user?.name?.[0]?.toUpperCase() ?? '?'}
           </div>
@@ -314,51 +268,42 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
         </div>
       )}
 
-      <div
-        className={`flex flex-col max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}
-      >
+      <div className={`flex flex-col max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}>
+
+        {/* Name + time for others */}
         {!isOwn && (
           <div className="flex items-baseline gap-2 mb-1 px-1">
-            <span className="text-xs font-semibold text-white/70">
-              {msg.user?.name ?? 'Unknown'}
-            </span>
+            <span className="text-xs font-semibold text-white/70">{msg.user?.name ?? 'Unknown'}</span>
             <span className="text-xs text-white/30">
               {msg.createdAt
-                ? new Date(msg.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : ''}
             </span>
           </div>
         )}
 
-        <div
-          className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
-        >
-          <div
-            className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words
-              ${
-                isOwn
-                  ? 'bg-amber-400 text-black rounded-br-sm'
-                  : 'bg-[#1a3260] text-white/85 rounded-bl-sm'
-              }`}
+        <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+
+          {/* Bubble */}
+          <div className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words
+            ${isOwn
+              ? 'bg-amber-400 text-black rounded-br-sm'
+              : 'bg-[#1a3260] text-white/85 rounded-bl-sm'
+            }`}
           >
             {msg.content}
           </div>
 
+          {/* Delete — own messages only, hover reveal */}
           {isOwn && onDelete && (
-            <div
-              className={`transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
-            >
+            <div className={`transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
               <button
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-150
-                  ${
-                    confirmDelete
-                      ? 'bg-red-500 text-white hover:bg-red-400'
-                      : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
+                  ${confirmDelete
+                    ? 'bg-red-500 text-white hover:bg-red-400'
+                    : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
                   }`}
               >
                 {isDeleting ? '…' : confirmDelete ? '✕ Sure?' : '🗑'}
@@ -367,13 +312,11 @@ function MessageRow({ msg, isOwn, isDeleting, onDelete, isOnline }) {
           )}
         </div>
 
+        {/* Timestamp for own messages */}
         {isOwn && (
           <span className="text-xs text-white/30 mt-1 px-1">
             {msg.createdAt
-              ? new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
+              ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : ''}
           </span>
         )}

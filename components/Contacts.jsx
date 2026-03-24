@@ -1,4 +1,5 @@
 const Contacts = ({ sections, updateSelectedThred }) => {
+  console.log('sections received:', sections); // check if threads exist inside
   return (
     <div className="flex flex-col gap-4 p-4 text-white">
       {sections.map((section) => (
@@ -9,7 +10,7 @@ const Contacts = ({ sections, updateSelectedThred }) => {
             {section.threads.map((thread) => (
               <div
                 onClick={() => {
-                  console.log("THE THREAD: ", thread)
+                  console.log('THE THREAD: ', thread);
                   updateSelectedThred(thread);
                 }}
                 key={thread.id}
