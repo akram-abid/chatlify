@@ -1,62 +1,86 @@
 import { faAdd, faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Image from 'next/image';
-
 import ThemeSwitcherButton from './ThemeSwitcher';
 import LogoutButton from './ui/LogoutButton';
 
-const Navrow = ({ workspaces, updateSections, onSelectWorkspace }) => {
+const Navrow = ({ workspaces, updateSections, onSelectWorkspace, selectedWorkspaceId }) => {
   const handleClick = (ws) => {
-    console.log('workspace clicked:', ws); // is this firing?
-    console.log('ws.sections:', ws.sections); // are sections included?
     updateSections(ws.sections);
     onSelectWorkspace(ws);
   };
 
   return (
-    <div className="bg-mate flex flex-col items-center gap-2 p-2 h-screen">
-      <div className="flex flex-col justify-center items-center gap-3">
-        <Image
-          src="/logo.png"
-          alt="logo"
-          width={33}
-          height={33}
-          className="mb-2 pt-1"
-        />
-        <Image
-          src="/profilepic.jpeg"
-          alt="profile"
-          width={45}
-          height={45}
-          className="rounded-full object-cover"
-        />
+    <nav className="navrow">
+      {/* Logo */}
+      <div className="navrow__logo">
+        <div className="navrow__logo-ring">
+          <Image src="/logo.png" alt="logo" width={28} height={28} className="navrow__logo-img" />
+        </div>
       </div>
 
-      <div className="w-8 h-px bg-accent/30 my-2"></div>
+      {/* Profile */}
+      <div className="navrow__profile">
+        <div className="navrow__avatar-wrap">
+          <Image
+            src="/profilepic.jpeg"
+            alt="profile"
+            width={40}
+            height={40}
+            className="navrow__avatar"
+          />
+          <span className="navrow__status-dot" />
+        </div>
+      </div>
 
-      <div className="flex flex-col justify-center items-center gap-3 flex-1 min-h-0">
-        <div className="flex-1 w-full rounded-2xl p-2 flex flex-col gap-4 overflow-y-auto hover:bg-mate-light transition-all duration-300 min-h-0 scrollbar-hide">
-          {workspaces.map((ws) => (
-            <div
+      <div className="navrow__divider" />
+
+      {/* Workspaces */}
+      <div className="navrow__workspaces">
+        {workspaces.map((ws, i) => {
+          const isActive = ws.id === selectedWorkspaceId;
+          const colors = [
+            'ws-color-blue',
+            'ws-color-purple',
+            'ws-color-teal',
+            'ws-color-amber',
+            'ws-color-rose',
+          ];
+          const colorClass = colors[i % colors.length];
+
+          return (
+            <button
               key={ws.id}
-              onClick={() => handleClick(ws)} // ← was updateSections(ws.sections)
-              className="w-[40px] h-[40px] bg-amber-400 rounded-[8px] flex-shrink-0"
-            />
-          ))}
-        </div>
-        <div className="w-[40px] h-[40px] bg-mate-light rounded-[8px] flex items-center justify-center flex-shrink-0">
-          <FontAwesomeIcon icon={faAdd} className="text-accent w-4" />
-        </div>
+              onClick={() => handleClick(ws)}
+              className={`navrow__ws-btn ${colorClass} ${isActive ? 'is-active' : ''}`}
+              title={ws.name || `Workspace ${i + 1}`}
+            >
+              {isActive && <span className="navrow__ws-active-bar" />}
+              <span className="navrow__ws-initial">
+                {ws.name ? ws.name[0].toUpperCase() : '?'}
+              </span>
+            </button>
+          );
+        })}
+
+        {/* Add workspace */}
+        <button className="navrow__add-btn" title="Add workspace">
+          <FontAwesomeIcon icon={faAdd} className="navrow__add-icon" />
+        </button>
       </div>
 
-      <div className="w-8 h-px bg-accent/30 my-2"></div>
+      <div className="navrow__spacer" />
+      <div className="navrow__divider" />
 
-      <div className="flex flex-col justify-center items-center gap-3">
-        <FontAwesomeIcon icon={faGear} className="w-6 text-accent" />
+      {/* Bottom actions */}
+      <div className="navrow__actions">
+        <button className="navrow__action-btn" title="Settings">
+          <FontAwesomeIcon icon={faGear} className="navrow__action-icon" />
+        </button>
         <ThemeSwitcherButton />
         <LogoutButton />
       </div>
-    </div>
+    </nav>
   );
 };
 
