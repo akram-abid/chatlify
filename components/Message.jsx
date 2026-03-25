@@ -184,6 +184,7 @@ export const Message = ({
   ).length;
 
   /* ── Group consecutive messages from same sender ── */
+  console.log("the messages are: ", messages)
   const grouped = (messages ?? []).map((msg, i, arr) => {
     const prev = arr[i - 1];
     const showAvatar =
