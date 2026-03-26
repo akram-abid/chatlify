@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Contacts from '@/components/Contacts';
 import Navrow from '../components/navrow';
 import Message from '@/components/Message';
@@ -21,10 +21,14 @@ export default function Home() {
   const [dmConversations, setDmConversations] = useState([]);
   const [selectedDM, setSelectedDM] = useState(null);
   const [unreadDMs, setUnreadDMs] = useState({});
-  
+  const selectedDMRef = useRef(null);
 
   const { token, currentUserId } = useAuth();
   const socket = useSocket(token);
+
+  useEffect(() => {
+    selectedDMRef.current = selectedDM;
+  }, [selectedDM]);
 
   // ── Global presence ──
   useEffect(() => {
@@ -105,7 +109,6 @@ export default function Home() {
     if (!socket) return;
 
     const handleDMMessage = (msg) => {
-      // msg shape: { id, content, createdAt, user: { id, name }, dmRoomId }
       const conversationId = msg.dmRoomId;
       if (!conversationId) return;
 
@@ -114,34 +117,27 @@ export default function Home() {
         minute: '2-digit',
       });
 
-      // Update last message preview and bubble this conversation to the top
       setDmConversations((prev) => {
         const updated = prev.map((conv) =>
           conv.id === conversationId
             ? { ...conv, lastMessage: msg.content, lastTime: time }
             : conv
         );
-        // Sort: the updated conversation floats to the top
         return updated.sort((a, b) =>
           a.id === conversationId ? -1 : b.id === conversationId ? 1 : 0
         );
       });
 
-      // Increment unread badge only if:
-      // - this conversation is NOT currently open
-      // - the message is NOT from the current user (don't badge your own sent msgs)
-      setSelectedDM((currentDM) => {
-        if (
-          currentDM?.id !== conversationId &&
-          String(msg.user?.id) !== String(currentUserId)
-        ) {
-          setUnreadDMs((prev) => ({
-            ...prev,
-            [conversationId]: (prev[conversationId] || 0) + 1,
-          }));
-        }
-        return currentDM;
-      });
+      // Read selectedDM from ref — no nested setState
+      if (
+        selectedDMRef.current?.id !== conversationId &&
+        String(msg.user?.id) !== String(currentUserId)
+      ) {
+        setUnreadDMs((prev) => ({
+          ...prev,
+          [conversationId]: (prev[conversationId] || 0) + 1,
+        }));
+      }
     };
 
     socket.on('dm_message_received', handleDMMessage);
