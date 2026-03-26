@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import SearchInput from './SearchInput';
 import {
-  faChevronDown, faChevronRight,
-  faHashtag, faLock, faVolumeHigh,
+  faChevronDown,
+  faChevronRight,
+  faHashtag,
+  faLock,
+  faVolumeHigh,
   faCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -24,7 +27,8 @@ const avatarGradients = [
   'linear-gradient(135deg,#d97706,#b45309)',
   'linear-gradient(135deg,#e11d48,#be123c)',
 ];
-const getGradient = (name = '') => avatarGradients[name.charCodeAt(0) % avatarGradients.length];
+const getGradient = (name = '') =>
+  avatarGradients[name.charCodeAt(0) % avatarGradients.length];
 
 /* ── DM conversation item ── */
 const DMItem = ({ dm, isActive, onClick, isOnline }) => {
@@ -38,30 +42,34 @@ const DMItem = ({ dm, isActive, onClick, isOnline }) => {
       <div className="dm-item__avatar-wrap">
         <div className="dm-item__avatar" style={{ background: grad }}>
           {dm.avatar ? (
-            <img src={dm.avatar} alt={dm.name} className="dm-item__avatar-img" />
-          ) : initial}
+            <img
+              src={dm.avatar}
+              alt={dm.name}
+              className="dm-item__avatar-img"
+            />
+          ) : (
+            initial
+          )}
         </div>
-        <span className={`dm-item__status ${isOnline ? 'is-online' : 'is-offline'}`} />
+        <span
+          className={`dm-item__status ${isOnline ? 'is-online' : 'is-offline'}`}
+        />
       </div>
       <div className="dm-item__body">
         <div className="dm-item__top">
           <span className="dm-item__name">{dm.name}</span>
           {dm.lastTime && <span className="dm-item__time">{dm.lastTime}</span>}
         </div>
-        {dm.lastMessage && (
-          <p className="dm-item__preview">{dm.lastMessage}</p>
-        )}
+        {dm.lastMessage && <p className="dm-item__preview">{dm.lastMessage}</p>}
       </div>
-      {dm.unread > 0 && (
-        <span className="dm-item__badge">{dm.unread}</span>
-      )}
+      {dm.unread > 0 && <span className="dm-item__badge">{dm.unread}</span>}
     </button>
   );
 };
 
 /* ── main component ── */
 const Contacts = ({
-  sections,
+  sections = [],
   updateSelectedThred,
   selectedThread,
   isDMMode,
@@ -89,8 +97,7 @@ const Contacts = ({
     return () => clearTimeout(t);
   }, [isDMMode]);
 
-  const toggleSection = (id) =>
-    setCollapsed((p) => ({ ...p, [id]: !p[id] }));
+  const toggleSection = (id) => setCollapsed((p) => ({ ...p, [id]: !p[id] }));
 
   /* ── WORKSPACE PANEL ── */
   const WorkspacePanel = () => {
@@ -122,8 +129,9 @@ const Contacts = ({
           {sections.map((section) => {
             const isCollapsed = collapsed[section.id];
             const icon = sectionIcon(section.name);
-            const threads = section.threads?.filter((t) =>
-              !search || t.title?.toLowerCase().includes(search.toLowerCase())
+            const threads = section.threads?.filter(
+              (t) =>
+                !search || t.title?.toLowerCase().includes(search.toLowerCase())
             );
             return (
               <div key={section.id} className="contacts-section">
@@ -136,7 +144,9 @@ const Contacts = ({
                     className="contacts-section-chevron"
                   />
                   <span className="contacts-section-label">{section.name}</span>
-                  <span className="contacts-section-count">{threads?.length || 0}</span>
+                  <span className="contacts-section-count">
+                    {threads?.length || 0}
+                  </span>
                 </button>
                 {!isCollapsed && (
                   <div className="contacts-threads">
@@ -146,10 +156,17 @@ const Contacts = ({
                         onClick={() => updateSelectedThred(thread)}
                         className={`contacts-thread-btn ${selectedThread?.id === thread.id ? 'is-active' : ''}`}
                       >
-                        <FontAwesomeIcon icon={icon} className="contacts-thread-icon" />
-                        <span className="contacts-thread-name">{thread.title}</span>
+                        <FontAwesomeIcon
+                          icon={icon}
+                          className="contacts-thread-icon"
+                        />
+                        <span className="contacts-thread-name">
+                          {thread.title}
+                        </span>
                         {thread.unread > 0 && (
-                          <span className="contacts-unread-badge">{thread.unread}</span>
+                          <span className="contacts-unread-badge">
+                            {thread.unread}
+                          </span>
                         )}
                       </button>
                     ))}
@@ -171,8 +188,8 @@ const Contacts = ({
 
   /* ── DM PANEL ── */
   const DMPanel = () => {
-    const filtered = dmConversations.filter((dm) =>
-      !search || dm.name?.toLowerCase().includes(search.toLowerCase())
+    const filtered = dmConversations.filter(
+      (dm) => !search || dm.name?.toLowerCase().includes(search.toLowerCase())
     );
     return (
       <>
@@ -223,7 +240,9 @@ const Contacts = ({
 
   return (
     <aside className="contacts-panel">
-      <div className={`contacts-slide ${transitioning ? 'contacts-slide--exit' : 'contacts-slide--enter'}`}>
+      <div
+        className={`contacts-slide ${transitioning ? 'contacts-slide--exit' : 'contacts-slide--enter'}`}
+      >
         {rendered === 'ws' ? <WorkspacePanel /> : <DMPanel />}
       </div>
     </aside>

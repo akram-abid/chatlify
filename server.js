@@ -14,7 +14,6 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // Attach Socket.io to the same HTTP server
   const io = new Server(httpServer, {
     cors: {
       origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -22,16 +21,13 @@ app.prepare().then(() => {
     },
   });
 
-  // ── Middleware: authenticate every socket connection ──
+  // ── Auth middleware ──
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
       if (!token) return next(new Error('Unauthorized'));
-
       const secret = new TextEncoder().encode(process.env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
-
-      // Attach userId to the socket so we can use it later
       socket.userId = payload.userId;
       next();
     } catch {
@@ -39,25 +35,48 @@ app.prepare().then(() => {
     }
   });
 
+  // ── Global online presence map: userId → Set of socketIds ──
+  // A user can have multiple tabs open, so we count connections not just booleans
+  const onlineUsers = new Map(); // userId → Set<socketId>
+
+  const userCameOnline = (userId, socketId) => {
+    if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
+    onlineUsers.get(userId).add(socketId);
+  };
+
+  const userWentOffline = (userId, socketId) => {
+    const sockets = onlineUsers.get(userId);
+    if (!sockets) return false;
+    sockets.delete(socketId);
+    if (sockets.size === 0) {
+      onlineUsers.delete(userId);
+      return true; // truly offline now
+    }
+    return false;
+  };
+
+  const getOnlineUserIds = () => [...onlineUsers.keys()];
+
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userId}`);
 
-    // ── Workspace presence (join as soon as user opens the workspace) ──
+    // ── Global presence: mark online immediately on connect ──
+    userCameOnline(socket.userId, socket.id);
+    // Tell everyone this user is now online
+    socket.broadcast.emit('global_user_online', socket.userId);
+    // Tell the connecting user who's already online
+    socket.emit('global_online_users', getOnlineUserIds());
+
+    // ── Workspace presence ──
     socket.on('join_workspace', async (workspaceId) => {
       socket.join(`workspace:${workspaceId}`);
-
-      // Tell others this user is now online
       socket.to(`workspace:${workspaceId}`).emit('user_online', socket.userId);
 
-      // Tell the joining user who's already online in this workspace
       const sockets = await io.in(`workspace:${workspaceId}`).fetchSockets();
       const onlineUserIds = sockets
         .map((s) => s.userId)
         .filter((id) => id !== socket.userId);
-
       socket.emit('online_users', onlineUserIds);
-
-      console.log(`User ${socket.userId} joined workspace ${workspaceId}`);
     });
 
     socket.on('leave_workspace', (workspaceId) => {
@@ -65,20 +84,16 @@ app.prepare().then(() => {
       socket.to(`workspace:${workspaceId}`).emit('user_offline', socket.userId);
     });
 
-    // ── Thread room (only for messages and typing) ──
+    // ── Thread rooms ──
     socket.on('join_thread', (threadId) => {
       socket.join(`thread:${threadId}`);
     });
 
     socket.on('leave_thread', (threadId) => {
       socket.leave(`thread:${threadId}`);
-      // also clear typing when leaving
-      socket
-        .to(`thread:${threadId}`)
-        .emit('user_stopped_typing', socket.userId);
+      socket.to(`thread:${threadId}`).emit('user_stopped_typing', socket.userId);
     });
 
-    // ── Messages ──
     socket.on('new_message', (message) => {
       io.to(`thread:${message.threadId}`).emit('message_received', message);
     });
@@ -87,15 +102,56 @@ app.prepare().then(() => {
       io.to(`thread:${threadId}`).emit('message_deleted', messageId);
     });
 
-    // ── Typing (thread-scoped, makes sense) ──
     socket.on('typing_start', (threadId) => {
-      const room = io.sockets.adapter.rooms.get(`thread:${threadId}`);
       socket.to(`thread:${threadId}`).emit('user_typing', socket.userId);
     });
 
     socket.on('typing_stop', (threadId) => {
+      socket.to(`thread:${threadId}`).emit('user_stopped_typing', socket.userId);
+    });
+
+    // ── DM conversation rooms ──
+    socket.on('join_conversation', (conversationId) => {
+      socket.join(`conversation:${conversationId}`);
+    });
+
+    socket.on('leave_conversation', (conversationId) => {
+      socket.leave(`conversation:${conversationId}`);
       socket
-        .to(`thread:${threadId}`)
+        .to(`conversation:${conversationId}`)
+        .emit('user_stopped_typing', socket.userId);
+    });
+
+    // message has shape: { id, content, createdAt, user: { id, name, email }, roomId }
+    socket.on('new_message', (message) => {
+      if (message.roomId) {
+        // DM — roomId is the conversationId
+        socket
+          .to(`conversation:${message.roomId}`)
+          .emit('message_received', message);
+      } else if (message.threadId) {
+        // Workspace thread
+        io.to(`thread:${message.threadId}`).emit('message_received', message);
+      }
+    });
+
+    socket.on('delete_message', ({ threadId, conversationId, messageId }) => {
+      if (conversationId) {
+        io.to(`conversation:${conversationId}`).emit('message_deleted', messageId);
+      } else if (threadId) {
+        io.to(`thread:${threadId}`).emit('message_deleted', messageId);
+      }
+    });
+
+    socket.on('dm_typing_start', (conversationId) => {
+      socket
+        .to(`conversation:${conversationId}`)
+        .emit('user_typing', socket.userId);
+    });
+
+    socket.on('dm_typing_stop', (conversationId) => {
+      socket
+        .to(`conversation:${conversationId}`)
         .emit('user_stopped_typing', socket.userId);
     });
 
@@ -106,6 +162,14 @@ app.prepare().then(() => {
           socket.to(room).emit('user_offline', socket.userId);
           socket.to(room).emit('user_stopped_typing', socket.userId);
         }
+      }
+    });
+
+    socket.on('disconnect', () => {
+      const trulyOffline = userWentOffline(socket.userId, socket.id);
+      if (trulyOffline) {
+        socket.broadcast.emit('global_user_offline', socket.userId);
+        console.log(`User truly offline: ${socket.userId}`);
       }
     });
   });

@@ -13,7 +13,8 @@ export default function Home() {
   const [SelectedThread, SetSelectedThread] = useState({});
   const [Messages, SetMessages] = useState([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);       // workspace-scoped
+  const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]); // always-on presence
 
   // DM state
   const [isDMMode, setIsDMMode] = useState(false);
@@ -22,6 +23,23 @@ export default function Home() {
 
   const { token, currentUserId } = useAuth();
   const socket = useSocket(token);
+
+  // ── Global presence — fires as soon as socket connects ──
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('global_online_users', (ids) => setGlobalOnlineUsers(ids));
+    socket.on('global_user_online',  (id) =>
+      setGlobalOnlineUsers((p) => (p.includes(id) ? p : [...p, id]))
+    );
+    socket.on('global_user_offline', (id) =>
+      setGlobalOnlineUsers((p) => p.filter((x) => x !== id))
+    );
+    return () => {
+      socket.off('global_online_users');
+      socket.off('global_user_online');
+      socket.off('global_user_offline');
+    };
+  }, [socket]);
 
   // ── Workspace presence ──
   useEffect(() => {
@@ -93,7 +111,8 @@ export default function Home() {
       try {
         const res = await fetch(`/api/dm/${selectedDM.id}/messages`);
         const data = await res.json();
-        SetMessages(data.messages || []);
+        console.log("the messages are :", data)
+        SetMessages(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
       }
@@ -140,7 +159,7 @@ export default function Home() {
           selectedThread={SelectedThread}
           isDMMode={isDMMode}
           dmConversations={dmConversations}
-          onlineUsers={onlineUsers}
+          onlineUsers={globalOnlineUsers}
           selectedDM={selectedDM}
           onSelectDM={setSelectedDM}
         />
@@ -148,7 +167,7 @@ export default function Home() {
           thread={activeConversation}
           messages={Messages}
           setMessages={SetMessages}
-          onlineUsers={onlineUsers}
+          onlineUsers={isDMMode ? globalOnlineUsers : onlineUsers}
           isDMMode={isDMMode}
         />
       </div>

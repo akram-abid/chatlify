@@ -7,6 +7,7 @@ export async function GET(req) {
     const token = req.cookies.get('access_token')?.value;
 
     if (!token) {
+      console.log("i am going to block him up");
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

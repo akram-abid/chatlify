@@ -25,8 +25,7 @@ const PeopleIcon = ({ size = 16 }) => (
   </svg>
 );
 
-const Navrow = ({ workspaces, updateSections, onSelectWorkspace, selectedWorkspaceId, onToggleDM, isDMMode }) => {
-  const [prevWsId, setPrevWsId] = useState(null);
+const Navrow = ({ workspaces = [], updateSections, onSelectWorkspace, selectedWorkspaceId, onToggleDM, isDMMode }) => {  const [prevWsId, setPrevWsId] = useState(null);
   const [animDir, setAnimDir] = useState(null); // 'down' | 'up'
   const animTimeout = useRef(null);
 

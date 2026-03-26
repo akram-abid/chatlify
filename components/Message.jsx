@@ -7,6 +7,7 @@ import {
   faPaperPlane,
   faPlus,
   faTrash,
+  faAt,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -30,10 +31,12 @@ const formatTime = (d) =>
    MAIN MESSAGE COMPONENT
 ────────────────────────────────────────────── */
 export const Message = ({
-  thread,
+  thread, // in workspace mode: the thread object
+  // in DM mode: the conversation object ({ id, name, userId, ... })
   messages,
   setMessages,
   onlineUsers = [],
+  isDMMode = false,
 }) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -48,17 +51,35 @@ export const Message = ({
   const { currentUserId, token } = useAuth();
   const socket = useSocket(token);
 
+  // The active "room" id — threadId in workspace mode, conversationId in DM mode
+  const roomId = thread?.id;
+
+  /* ── API URLs based on mode ── */
+  const getMessagesUrl = () =>
+    isDMMode ? `/api/dm/${roomId}/messages` : `/api/threads/${roomId}/message`;
+
+  const postMessageUrl = () =>
+    isDMMode ? `/api/dm/${roomId}/messages` : `/api/threads/${roomId}/message`;
+
+  const deleteMessageUrl = (msgId) =>
+    isDMMode
+      ? `/api/dm/${roomId}/messages/${msgId}`
+      : `/api/threads/${roomId}/message/${msgId}`;
+
   /* ── Socket ── */
   useEffect(() => {
-    if (!socket || !thread?.id) return;
-    socket.emit('join_thread', thread.id);
+    if (!socket || !roomId) return;
+
+    const joinEvent = isDMMode ? 'join_conversation' : 'join_thread';
+    const leaveEvent = isDMMode ? 'leave_conversation' : 'leave_thread';
+
+    socket.emit(joinEvent, roomId);
 
     socket.on('message_received', (msg) => {
       setMessages((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
-      // setNewMsgIds outside setMessages
       setNewMsgIds((s) => new Set([...s, msg.id]));
       setTimeout(() => {
         setNewMsgIds((s) => {
@@ -80,13 +101,13 @@ export const Message = ({
     );
 
     return () => {
-      socket.emit('leave_thread', thread.id);
+      socket.emit(leaveEvent, roomId);
       socket.off('message_received');
       socket.off('message_deleted');
       socket.off('user_typing');
       socket.off('user_stopped_typing');
     };
-  }, [socket, thread?.id]);
+  }, [socket, roomId, isDMMode]);
 
   /* ── Auto scroll ── */
   useEffect(() => {
@@ -95,46 +116,68 @@ export const Message = ({
 
   /* ── Handlers ── */
   const handleTyping = useCallback((v) => setMessage(v), []);
-  const handleFocus = useCallback(
-    () => socket?.emit('typing_start', thread.id),
-    [socket, thread?.id]
-  );
-  const handleBlur = useCallback(
-    () => socket?.emit('typing_stop', thread.id),
-    [socket, thread?.id]
-  );
+  const handleFocus = useCallback(() => {
+    if (isDMMode) socket?.emit('dm_typing_start', roomId);
+    else socket?.emit('typing_start', roomId);
+  }, [socket, roomId, isDMMode]);
+
+  const handleBlur = useCallback(() => {
+    if (isDMMode) socket?.emit('dm_typing_stop', roomId);
+    else socket?.emit('typing_stop', roomId);
+  }, [socket, roomId, isDMMode]);
 
   const handleSend = async () => {
-    if (!message.trim() || sending) return;
+    if (!message.trim() || sending || !roomId) return;
     clearTimeout(typingTimeoutRef.current);
-    socket?.emit('typing_stop', thread.id);
+    socket?.emit('typing_stop', roomId);
     setSending(true);
     try {
-      const res = await fetch(`/api/threads/${thread.id}/message`, {
+      const res = await fetch(postMessageUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: message }),
       });
-      const newMessages = await res.json();
-      const justCreated = newMessages[newMessages.length - 1];
 
-      setMessages(newMessages);
+      if (!res.ok) {
+        console.error('Send failed:', res.status, await res.text());
+        return;
+      }
+
+      const data = await res.json();
+
+      // Both routes return an array — workspace returns all msgs, DM returns [newMsg]
+      if (!Array.isArray(data) || data.length === 0) {
+        console.error('Unexpected response shape:', data);
+        return;
+      }
+
+      const justCreated = data[data.length - 1];
+
+      if (isDMMode) {
+        // DM: append the single new message instead of replacing all
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === justCreated.id)) return prev;
+          return [...prev, justCreated];
+        });
+      } else {
+        // Workspace: replace with full refreshed list
+        setMessages(data);
+      }
+
       setMessage('');
-
       setNewMsgIds((s) => new Set([...s, justCreated.id]));
-      setTimeout(
-        () =>
-          setNewMsgIds((s) => {
-            const n = new Set(s);
-            n.delete(justCreated.id);
-            return n;
-          }),
-        600
-      );
+      setTimeout(() => {
+        setNewMsgIds((s) => {
+          const n = new Set(s);
+          n.delete(justCreated.id);
+          return n;
+        });
+      }, 600);
+
       inputRef.current?.focus();
-      socket?.emit('new_message', justCreated);
+      socket?.emit('new_message', { ...justCreated, roomId });
     } catch (err) {
-      console.error(err);
+      console.error('handleSend error:', err);
     } finally {
       setSending(false);
     }
@@ -143,15 +186,10 @@ export const Message = ({
   const handleDelete = async (msgId) => {
     setDeletingId(msgId);
     try {
-      const res = await fetch(`/api/threads/${thread.id}/message/${msgId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(deleteMessageUrl(msgId), { method: 'DELETE' });
       if (res.ok) {
         setMessages((p) => p.filter((m) => m.id !== msgId));
-        socket?.emit('delete_message', {
-          threadId: thread.id,
-          messageId: msgId,
-        });
+        socket?.emit('delete_message', { roomId, messageId: msgId });
       }
     } catch (err) {
       console.error(err);
@@ -184,7 +222,6 @@ export const Message = ({
   ).length;
 
   /* ── Group consecutive messages from same sender ── */
-  console.log("the messages are: ", messages)
   const grouped = (messages ?? []).map((msg, i, arr) => {
     const prev = arr[i - 1];
     const showAvatar =
@@ -194,20 +231,53 @@ export const Message = ({
     return { msg, showAvatar };
   });
 
+  /* ── Empty / no room selected state ── */
+  if (!roomId) {
+    return (
+      <div className="msg-panel">
+        <div className="msg-panel__body">
+          <div className="msg-panel__empty">
+            <div className="msg-panel__empty-icon">
+              {isDMMode ? '💬' : '🏠'}
+            </div>
+            <p className="msg-panel__empty-title">
+              {isDMMode ? 'Select a conversation' : 'Select a channel'}
+            </p>
+            <p className="msg-panel__empty-sub">
+              {isDMMode
+                ? 'Pick someone from your messages'
+                : 'Pick a channel from the sidebar'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Header label ── */
+  const headerName = isDMMode
+    ? (thread?.name ?? 'Direct Message')
+    : (thread?.title ?? 'channel');
+
   return (
     <div className="msg-panel">
       {/* ── Header ── */}
       <div className="msg-panel__header">
         <div className="msg-panel__header-left">
           <div className="msg-panel__channel-icon">
-            <FontAwesomeIcon icon={faHashtag} />
+            <FontAwesomeIcon icon={isDMMode ? faAt : faHashtag} />
           </div>
-          <span className="msg-panel__channel-name">
-            {thread?.title || 'channel'}
-          </span>
+          <span className="msg-panel__channel-name">{headerName}</span>
           <span className="msg-panel__count">{messages?.length ?? 0}</span>
+
+          {/* DM: show online indicator for the other person */}
+          {isDMMode && onlineUsers.includes(thread?.userId) && (
+            <span className="msg-panel__dm-online">
+              <span className="msg-panel__dm-online-dot" /> Online
+            </span>
+          )}
         </div>
-        {onlineCount > 0 && (
+        {!isDMMode && onlineCount > 0 && (
           <div className="msg-panel__online">
             <span className="msg-panel__online-dot" />
             <span className="msg-panel__online-label">
@@ -248,7 +318,6 @@ export const Message = ({
           </div>
         )}
 
-        {/* Typing indicator */}
         {typingLabel && (
           <div className="msg-typing">
             <div className="msg-typing__dots">
@@ -273,7 +342,9 @@ export const Message = ({
             ref={inputRef}
             type="text"
             value={message}
-            placeholder={`Message #${thread?.title || 'channel'}`}
+            placeholder={
+              isDMMode ? `Message ${headerName}` : `Message #${headerName}`
+            }
             onChange={(e) => handleTyping(e.target.value)}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -387,7 +458,6 @@ function MessageRow({
             {msg.content}
           </div>
 
-          {/* Delete action */}
           {isOwn && onDelete && (
             <div className={`msg-row__actions ${hovered ? 'is-visible' : ''}`}>
               <button
