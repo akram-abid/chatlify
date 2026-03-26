@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserIdFromRequest } from '@/lib/auth';
+import { io } from 'socket.io-client';
 
 async function assertParticipant(conversationId, userId) {
   const participant = await prisma.conversationParticipant.findUnique({
@@ -41,7 +42,7 @@ export async function GET(req, { params }) {
       editedAt: m.editedAt,
       user: m.sender, // rename sender → user so MessageRow renders correctly
     }));
-
+    
     return NextResponse.json(normalized);
   } catch (err) {
     console.error('[GET /api/dm/[conversationId]/messages]', err);

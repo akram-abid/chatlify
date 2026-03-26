@@ -1,23 +1,28 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
-let socketInstance = null;
+let socket = null; // singleton — one connection for the whole app
 
 export function useSocket(token) {
-  const [socket, setSocket] = useState(null);
+  const socketRef = useRef(null);
 
   useEffect(() => {
     if (!token) return;
 
-    if (!socketInstance) {
-      socketInstance = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-        auth: { token },
+    // Create connection once, reuse it
+    if (!socket) {
+      socket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
+        auth: { token }, // this is how we send the JWT to server.js middleware
       });
     }
 
-    setSocket(socketInstance);
+    socketRef.current = socket;
+
+    return () => {
+      // Don't disconnect on unmount — keep the singleton alive
+    };
   }, [token]);
 
-  return socket;
+  return socketRef.current;
 }

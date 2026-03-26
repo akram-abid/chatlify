@@ -101,7 +101,13 @@ export const Message = ({
     );
 
     return () => {
-      socket.emit(leaveEvent, roomId);
+      if (isDMMode) {
+        // Don't leave the room — stay subscribed for sidebar previews.
+        // Just stop the typing indicator.
+        socket.emit('dm_typing_stop', roomId);
+      } else {
+        socket.emit(leaveEvent, roomId);
+      }
       socket.off('message_received');
       socket.off('message_deleted');
       socket.off('user_typing');

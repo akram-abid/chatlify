@@ -91,15 +91,9 @@ app.prepare().then(() => {
 
     socket.on('leave_thread', (threadId) => {
       socket.leave(`thread:${threadId}`);
-      socket.to(`thread:${threadId}`).emit('user_stopped_typing', socket.userId);
-    });
-
-    socket.on('new_message', (message) => {
-      io.to(`thread:${message.threadId}`).emit('message_received', message);
-    });
-
-    socket.on('delete_message', ({ threadId, messageId }) => {
-      io.to(`thread:${threadId}`).emit('message_deleted', messageId);
+      socket
+        .to(`thread:${threadId}`)
+        .emit('user_stopped_typing', socket.userId);
     });
 
     socket.on('typing_start', (threadId) => {
@@ -107,7 +101,9 @@ app.prepare().then(() => {
     });
 
     socket.on('typing_stop', (threadId) => {
-      socket.to(`thread:${threadId}`).emit('user_stopped_typing', socket.userId);
+      socket
+        .to(`thread:${threadId}`)
+        .emit('user_stopped_typing', socket.userId);
     });
 
     // ── DM conversation rooms ──
@@ -125,19 +121,27 @@ app.prepare().then(() => {
     // message has shape: { id, content, createdAt, user: { id, name, email }, roomId }
     socket.on('new_message', (message) => {
       if (message.roomId) {
-        // DM — roomId is the conversationId
-        socket
-          .to(`conversation:${message.roomId}`)
-          .emit('message_received', message);
+        // DM — use io.to (includes sender) so sender's own preview also updates
+        io.to(`conversation:${message.roomId}`).emit(
+          'message_received',
+          message
+        );
+        // Separate event for sidebar preview — fires even on inactive conversations
+        io.to(`conversation:${message.roomId}`).emit('dm_message_received', {
+          ...message,
+          dmRoomId: message.roomId,
+        });
       } else if (message.threadId) {
-        // Workspace thread
         io.to(`thread:${message.threadId}`).emit('message_received', message);
       }
     });
 
     socket.on('delete_message', ({ threadId, conversationId, messageId }) => {
       if (conversationId) {
-        io.to(`conversation:${conversationId}`).emit('message_deleted', messageId);
+        io.to(`conversation:${conversationId}`).emit(
+          'message_deleted',
+          messageId
+        );
       } else if (threadId) {
         io.to(`thread:${threadId}`).emit('message_deleted', messageId);
       }

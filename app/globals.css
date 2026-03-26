@@ -2679,3 +2679,26 @@
 .dm-new-btn__icon {
   font-size: 13px;
 }
+/* ── Unread DM badge ── */
+.dm-item__badge--unread {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+  animation: unreadPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 18px;
+  text-align: center;
+}
+
+@keyframes unreadPop {
+  0%   { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Bold name and brighter preview when unread */
+.dm-item:has(.dm-item__badge--unread) .dm-item__name {
+  color: white;
+  font-weight: 700;
+}
+.dm-item:has(.dm-item__badge--unread) .dm-item__preview {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+}

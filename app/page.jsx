@@ -13,22 +13,24 @@ export default function Home() {
   const [SelectedThread, SetSelectedThread] = useState({});
   const [Messages, SetMessages] = useState([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState([]);       // workspace-scoped
-  const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]); // always-on presence
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]);
 
   // DM state
   const [isDMMode, setIsDMMode] = useState(false);
   const [dmConversations, setDmConversations] = useState([]);
   const [selectedDM, setSelectedDM] = useState(null);
+  const [unreadDMs, setUnreadDMs] = useState({});
+  
 
   const { token, currentUserId } = useAuth();
   const socket = useSocket(token);
 
-  // ── Global presence — fires as soon as socket connects ──
+  // ── Global presence ──
   useEffect(() => {
     if (!socket) return;
     socket.on('global_online_users', (ids) => setGlobalOnlineUsers(ids));
-    socket.on('global_user_online',  (id) =>
+    socket.on('global_user_online', (id) =>
       setGlobalOnlineUsers((p) => (p.includes(id) ? p : [...p, id]))
     );
     socket.on('global_user_offline', (id) =>
@@ -66,7 +68,7 @@ export default function Home() {
       try {
         const res = await fetch('/api/workspaces/');
         const data = await res.json();
-        SetWs(data.workspaces);
+        SetWs(data.workspaces ?? []);
       } catch (err) {
         console.error(err);
       }
@@ -74,20 +76,77 @@ export default function Home() {
     fetchWorkspaces();
   }, []);
 
-  // ── Fetch DM conversations when entering DM mode ──
+  // ── Fetch DM conversations ──
   useEffect(() => {
-    if (!isDMMode) return;
     const fetchDMs = async () => {
       try {
         const res = await fetch('/api/dm/conversations');
         const data = await res.json();
-        setDmConversations(data.conversations || []);
+        setDmConversations(data.conversations ?? []);
       } catch (err) {
         console.error(err);
       }
     };
     fetchDMs();
-  }, [isDMMode]);
+  }, []);
+  useEffect(() => {
+    if (!socket || dmConversations.length === 0) return;
+    dmConversations.forEach((conv) =>
+      socket.emit('join_conversation', conv.id)
+    );
+  }, [socket, dmConversations]);
+
+  // ── Real-time DM preview + unread — listens to dm_message_received ──
+  // This fires for ALL incoming DMs regardless of which conversation is open.
+  // The sender's own messages come through here too because Message.jsx
+  // emits new_dm_message → server broadcasts dm_message_received to the dm: room
+  // → page.jsx catches it here to update the sidebar preview.
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDMMessage = (msg) => {
+      // msg shape: { id, content, createdAt, user: { id, name }, dmRoomId }
+      const conversationId = msg.dmRoomId;
+      if (!conversationId) return;
+
+      const time = new Date(msg.createdAt).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      // Update last message preview and bubble this conversation to the top
+      setDmConversations((prev) => {
+        const updated = prev.map((conv) =>
+          conv.id === conversationId
+            ? { ...conv, lastMessage: msg.content, lastTime: time }
+            : conv
+        );
+        // Sort: the updated conversation floats to the top
+        return updated.sort((a, b) =>
+          a.id === conversationId ? -1 : b.id === conversationId ? 1 : 0
+        );
+      });
+
+      // Increment unread badge only if:
+      // - this conversation is NOT currently open
+      // - the message is NOT from the current user (don't badge your own sent msgs)
+      setSelectedDM((currentDM) => {
+        if (
+          currentDM?.id !== conversationId &&
+          String(msg.user?.id) !== String(currentUserId)
+        ) {
+          setUnreadDMs((prev) => ({
+            ...prev,
+            [conversationId]: (prev[conversationId] || 0) + 1,
+          }));
+        }
+        return currentDM;
+      });
+    };
+
+    socket.on('dm_message_received', handleDMMessage);
+    return () => socket.off('dm_message_received', handleDMMessage);
+  }, [socket, currentUserId]);
 
   // ── Fetch messages for selected thread ──
   useEffect(() => {
@@ -96,7 +155,7 @@ export default function Home() {
       try {
         const res = await fetch(`/api/threads/${SelectedThread.id}/message`);
         const data = await res.json();
-        SetMessages(data);
+        SetMessages(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
       }
@@ -111,7 +170,6 @@ export default function Home() {
       try {
         const res = await fetch(`/api/dm/${selectedDM.id}/messages`);
         const data = await res.json();
-        console.log("the messages are :", data)
         SetMessages(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
@@ -127,15 +185,18 @@ export default function Home() {
     setOnlineUsers([]);
   };
 
+  const handleSelectDM = (dm) => {
+    setSelectedDM(dm);
+    setUnreadDMs((prev) => ({ ...prev, [dm.id]: 0 }));
+  };
+
   const handleToggleDM = (val) => {
     setIsDMMode(val);
-    // clear active thread when switching modes
     SetSelectedThread({});
     setSelectedDM(null);
     SetMessages([]);
   };
 
-  // what to pass as "thread" to Message panel
   const activeConversation = isDMMode ? selectedDM : SelectedThread;
 
   return (
@@ -161,7 +222,9 @@ export default function Home() {
           dmConversations={dmConversations}
           onlineUsers={globalOnlineUsers}
           selectedDM={selectedDM}
-          onSelectDM={setSelectedDM}
+          onSelectDM={handleSelectDM}
+          unreadDMs={unreadDMs}
+          messages={Messages}
         />
         <Message
           thread={activeConversation}
