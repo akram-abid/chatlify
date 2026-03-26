@@ -120,7 +120,12 @@ export default function Home() {
       setDmConversations((prev) => {
         const updated = prev.map((conv) =>
           conv.id === conversationId
-            ? { ...conv, lastMessage: msg.content, lastTime: time }
+            ? {
+                ...conv,
+                lastMessage: msg.content,
+                lastTime: time,
+                lastMessageId: msg.id,
+              } // ← add this
             : conv
         );
         return updated.sort((a, b) =>
@@ -140,8 +145,22 @@ export default function Home() {
       }
     };
 
+    const handleDMDelete = ({ conversationId, messageId }) => {
+      setDmConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId && conv.lastMessageId === messageId
+            ? { ...conv, lastMessage: 'Message deleted', lastMessageId: null }
+            : conv
+        )
+      );
+    };
+
     socket.on('dm_message_received', handleDMMessage);
-    return () => socket.off('dm_message_received', handleDMMessage);
+    socket.on('dm_message_deleted', handleDMDelete);
+    return () => {
+      socket.off('dm_message_received', handleDMMessage);
+      socket.off('dm_message_deleted', handleDMDelete);
+    };
   }, [socket, currentUserId]);
 
   // ── Fetch messages for selected thread ──

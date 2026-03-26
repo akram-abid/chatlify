@@ -195,7 +195,11 @@ export const Message = ({
       const res = await fetch(deleteMessageUrl(msgId), { method: 'DELETE' });
       if (res.ok) {
         setMessages((p) => p.filter((m) => m.id !== msgId));
-        socket?.emit('delete_message', { roomId, messageId: msgId });
+        socket?.emit('delete_message', {
+          conversationId: isDMMode ? roomId : undefined,
+          threadId: !isDMMode ? roomId : undefined,
+          messageId: msgId,
+        });
       }
     } catch (err) {
       console.error(err);

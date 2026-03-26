@@ -7,22 +7,24 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 // ── PATCH — edit ──────────────────────────────────────────────────────────
 
 export async function PATCH(req, { params }) {
   try {
-    const currentUser = await getAuthUser(req);
-    if (!currentUser) {
+    const currentUserId = await getUserIdFromRequest(req);
+    if (!currentUserId)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { conversationId, messageId } = params;
     const { content } = await req.json();
 
     if (!content?.trim()) {
-      return NextResponse.json({ error: 'Content cannot be empty' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Content cannot be empty' },
+        { status: 400 }
+      );
     }
 
     const existing = await prisma.directMessage.findUnique({
@@ -32,11 +34,17 @@ export async function PATCH(req, { params }) {
     if (!existing || existing.conversationId !== conversationId) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
-    if (existing.senderId !== currentUser.id) {
-      return NextResponse.json({ error: 'Cannot edit another user\'s message' }, { status: 403 });
+    if (existing.senderId !== currentUserId) {
+      return NextResponse.json(
+        { error: "Cannot edit another user's message" },
+        { status: 403 }
+      );
     }
     if (existing.deleted) {
-      return NextResponse.json({ error: 'Cannot edit a deleted message' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Cannot edit a deleted message' },
+        { status: 400 }
+      );
     }
 
     const updated = await prisma.directMessage.update({
@@ -48,7 +56,10 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ message: updated });
   } catch (err) {
     console.error('[PATCH /api/dm/.../messages/:id]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -56,10 +67,9 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const currentUser = await getAuthUser(req);
-    if (!currentUser) {
+    const currentUserId = await getUserIdFromRequest(req);
+    if (!currentUserId)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { conversationId, messageId } = params;
 
@@ -70,8 +80,11 @@ export async function DELETE(req, { params }) {
     if (!existing || existing.conversationId !== conversationId) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
-    if (existing.senderId !== currentUser.id) {
-      return NextResponse.json({ error: 'Cannot delete another user\'s message' }, { status: 403 });
+    if (existing.senderId !== currentUserId) {
+      return NextResponse.json(
+        { error: "Cannot delete another user's message" },
+        { status: 403 }
+      );
     }
 
     await prisma.directMessage.update({
@@ -82,6 +95,9 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[DELETE /api/dm/.../messages/:id]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

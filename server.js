@@ -142,6 +142,11 @@ app.prepare().then(() => {
           'message_deleted',
           messageId
         );
+        // Sidebar preview needs conversationId too
+        io.to(`conversation:${conversationId}`).emit('dm_message_deleted', {
+          conversationId,
+          messageId,
+        });
       } else if (threadId) {
         io.to(`thread:${threadId}`).emit('message_deleted', messageId);
       }
