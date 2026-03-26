@@ -148,7 +148,7 @@ export default function Home() {
     const handleDMDelete = ({ conversationId, messageId }) => {
       setDmConversations((prev) =>
         prev.map((conv) =>
-          conv.id === conversationId && conv.lastMessageId === messageId
+          conv.id === conversationId
             ? { ...conv, lastMessage: 'Message deleted', lastMessageId: null }
             : conv
         )
